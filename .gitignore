@@ -4,3 +4,6 @@ node_modules/
 bug/
 fix-images.html
 storage.rules
+
+# Secrets - DO NOT commit
+js/firebase-config.js

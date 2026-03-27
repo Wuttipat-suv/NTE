@@ -47,7 +47,7 @@ E-commerce web app for selling TalesRunner game items. Built with vanilla HTML/C
 
 ### Admin (admin.html)
 
-- **Password protected** — modal prompt on page load (default password: `peerapong`, set in `js/admin.js` line 6)
+- **Password protected** — modal prompt on page load (password is set in `js/admin.js` via `ADMIN_PASSWORD` constant)
 - **Order Board tab** — view all orders (Facebook, character name, items, total, status), change status (pending/completed/cancelled)
 - **Product Management tab** — add/edit/delete products via modals
 - **Stock system** — "+" button to add stock with person's name logged, eye icon to view stock addition history (who added how much and when)
@@ -108,8 +108,10 @@ E-commerce web app for selling TalesRunner game items. Built with vanilla HTML/C
    firebase login
    ```
 
-3. **Update Firebase config** (if using a different project)
-   - Edit `js/firebase-config.js` with your Firebase project config
+3. **Create Firebase config**
+   - Copy `js/firebase-config.js.example` to `js/firebase-config.js`
+   - Fill in your Firebase project config from Firebase Console
+   - **Do NOT commit `js/firebase-config.js`** — it contains API keys
    - Edit `.firebaserc` with your project ID
 
 4. **Add item images**
@@ -130,6 +132,6 @@ E-commerce web app for selling TalesRunner game items. Built with vanilla HTML/C
 ## Important Notes
 
 - **Image filenames must be in English** — Thai filenames break on Firebase Hosting URL encoding
-- **Admin password** is hardcoded in `js/admin.js` (line 6) — change it for production
+- **Admin password** is in `js/admin.js` (`ADMIN_PASSWORD` constant) — change it for production
 - **Firestore rules** are currently open (read/write: true) — tighten for production
 - **Stock deduction** uses Firestore transactions to handle concurrent orders safely
