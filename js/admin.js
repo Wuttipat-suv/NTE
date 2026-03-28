@@ -56,8 +56,8 @@ function setupLogin() {
       modal.classList.remove('active');
       document.getElementById('adminContent').style.display = 'block';
       currentAdminName = ADMIN_UID_MAP[user.uid] || '';
-      await loadAdminNames();
-      await initSortOrder();
+      loadAdminNames();
+      initSortOrder();
       loadOrders();
       loadProducts();
       loadBanList();
@@ -240,13 +240,22 @@ async function updateOrderStatus(orderId, newStatus) {
 
       const items = Array.isArray(order.items) ? order.items : [];
 
+      const handler = order.handledBy || currentAdminName || 'admin';
+
       // ยกเลิก → คืน stock
       if (newStatus === 'cancelled' && oldStatus !== 'cancelled') {
         transaction.update(orderRef, { status: 'cancelled' });
         for (const item of items) {
           if (item.itemId) {
-            transaction.update(db.collection('items').doc(item.itemId), {
+            const itemRef = db.collection('items').doc(item.itemId);
+            transaction.update(itemRef, {
               stock: firebase.firestore.FieldValue.increment(item.qty)
+            });
+            transaction.set(itemRef.collection('stockHistory').doc(), {
+              qty: item.qty,
+              addedBy: handler,
+              note: 'คืน stock (ยกเลิก order)',
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
           }
         }
@@ -255,7 +264,6 @@ async function updateOrderStatus(orderId, newStatus) {
 
       // เปลี่ยนจากยกเลิก → หัก stock กลับ
       if (oldStatus === 'cancelled' && newStatus !== 'cancelled') {
-        // ตรวจ stock ก่อน
         for (const item of items) {
           if (item.itemId) {
             const itemDoc = await transaction.get(db.collection('items').doc(item.itemId));
@@ -267,15 +275,38 @@ async function updateOrderStatus(orderId, newStatus) {
         transaction.update(orderRef, { status: newStatus });
         for (const item of items) {
           if (item.itemId) {
-            transaction.update(db.collection('items').doc(item.itemId), {
+            const itemRef = db.collection('items').doc(item.itemId);
+            transaction.update(itemRef, {
               stock: firebase.firestore.FieldValue.increment(-item.qty)
+            });
+            transaction.set(itemRef.collection('stockHistory').doc(), {
+              qty: -item.qty,
+              addedBy: handler,
+              note: 'หัก stock (กู้คืน order)',
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
           }
         }
         return;
       }
 
-      // เปลี่ยนสถานะปกติ (pending ↔ completed)
+      // pending → completed: บันทึกการหัก stock ลง stockHistory
+      if (oldStatus === 'pending' && newStatus === 'completed') {
+        transaction.update(orderRef, { status: newStatus });
+        for (const item of items) {
+          if (item.itemId) {
+            transaction.set(db.collection('items').doc(item.itemId).collection('stockHistory').doc(), {
+              qty: -item.qty,
+              addedBy: handler,
+              note: 'ขาย (order: ' + (order.facebook || '-') + ')',
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          }
+        }
+        return;
+      }
+
+      // เปลี่ยนสถานะอื่นๆ
       transaction.update(orderRef, { status: newStatus });
     });
 
@@ -306,7 +337,7 @@ function loadProducts() {
   unsubProducts = db.collection('items').onSnapshot(snapshot => {
     if (snapshot.empty) {
       allProducts = [];
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#aaa;">ยังไม่มีสินค้า</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#aaa;">ยังไม่มีสินค้า</td></tr>';
       return;
     }
 
@@ -319,7 +350,8 @@ function loadProducts() {
           <td style="text-align:center;"><span class="drag-handle">☰</span> <span style="color:#e0b0ff;font-weight:600;">${index + 1}</span></td>
           <td><img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22><rect fill=%22%23333%22 width=%2250%22 height=%2250%22/></svg>'"></td>
           <td>${escapeHtml(item.name)}</td>
-          <td>${formatPrice(item.price)} บาท</td>
+          <td style="text-align:center;">${formatPrice(item.price)} บาท</td>
+          <td style="text-align:center;"><input type="number" step="any" min="0" class="promo-input" data-action="promo" data-id="${item.id}" value="${item.promoPrice != null ? item.promoPrice : ''}" placeholder="-"></td>
           <td style="font-weight:600;text-align:center;">${Number(item.stock) || 0}</td>
           <td style="text-align:center;"><div class="stock-btn-group"><button class="btn-stock-add" data-action="addStock" data-id="${item.id}" data-name="${escapeHtml(item.name)}">+</button><button class="btn-stock-reduce" data-action="reduceStock" data-id="${item.id}" data-name="${escapeHtml(item.name)}">-</button></div></td>
           <td style="text-align:center;"><button class="btn-icon" data-action="stockHistory" data-id="${item.id}" data-name="${escapeHtml(item.name)}">&#128065;</button></td>
@@ -337,7 +369,7 @@ function loadProducts() {
     });
   }, (e) => {
     console.error(e);
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#ff6b6b;">โหลดสินค้าไม่ได้</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#ff6b6b;">โหลดสินค้าไม่ได้</td></tr>';
   });
 }
 
@@ -539,10 +571,12 @@ async function openStockHistory(itemId, itemName) {
     list.innerHTML = snapshot.docs.map(doc => {
       const h = doc.data();
       const date = h.createdAt ? h.createdAt.toDate().toLocaleString('th-TH') : '-';
+      const note = h.note ? `<div style="font-size:11px;color:#ff9800;">${escapeHtml(h.note)}</div>` : '';
       return `
         <div class="stock-history-row">
           <div>
             <div style="font-weight:600;">${escapeHtml(h.addedBy)}</div>
+            ${note}
             <div style="font-size:12px;color:#aaa;">${date}</div>
           </div>
           <div style="color:${h.qty >= 0 ? '#4caf50' : '#ff4444'};font-weight:600;font-size:16px;">${h.qty >= 0 ? '+' : ''}${h.qty}</div>
@@ -1009,6 +1043,19 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     await firebase.auth().signOut();
     location.reload();
+  });
+
+  // Promo price: save on change
+  document.getElementById('productTableBody').addEventListener('change', (e) => {
+    if (e.target.dataset.action === 'promo') {
+      const id = e.target.dataset.id;
+      const val = e.target.value.trim();
+      const promo = val === '' ? firebase.firestore.FieldValue.delete() : parseFloat(val);
+      if (val !== '' && (isNaN(promo) || promo < 0)) return;
+      db.collection('items').doc(id).update({ promoPrice: promo })
+        .then(() => showToast(val === '' ? 'ลบราคาโปรแล้ว' : 'ตั้งราคาโปร ' + val + ' บาท'))
+        .catch(err => showAlert('บันทึกไม่ได้: ' + err.message, 'ผิดพลาด'));
+    }
   });
 
   // Event delegation สำหรับปุ่มในตารางสินค้า

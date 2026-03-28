@@ -4,6 +4,7 @@
 
 // Helpers
 function formatPrice(v) { const n = Number(v) || 0; return n % 1 === 0 ? n.toString() : n.toFixed(2); }
+function getPrice(item) { return item.promoPrice != null ? Number(item.promoPrice) : Number(item.price); }
 
 // State
 let items = [];
@@ -23,7 +24,12 @@ function loadItems() {
     .onSnapshot((snapshot) => {
       const prevItems = items;
       items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      items.sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity));
+      items.sort((a, b) => {
+        const aOut = (Number(a.stock) || 0) <= 0 ? 1 : 0;
+        const bOut = (Number(b.stock) || 0) <= 0 ? 1 : 0;
+        if (aOut !== bOut) return aOut - bOut;
+        return (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity);
+      });
 
       // ตรวจจับ stock ลดลง (มีคนซื้อไป) — toast แจ้งเตือน
       // ข้าม toast ถ้า admin เป็นคนลด stock (_adminAdjust เปลี่ยน)
@@ -53,6 +59,7 @@ function loadItems() {
         if (fresh) {
           entry.item.stock = fresh.stock;
           entry.item.price = fresh.price;
+          entry.item.promoPrice = fresh.promoPrice ?? null;
         }
       }
       renderCart();
@@ -89,7 +96,7 @@ function renderItems() {
         <div class="stock-badge">x${Number(item.stock) || 0}</div>
         <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><rect fill=%22%23333%22 width=%22100%22 height=%22100%22/><text fill=%22%23999%22 x=%2250%22 y=%2255%22 text-anchor=%22middle%22 font-size=%2212%22>No Image</text></svg>'">
         <div class="item-name">${escapeHtml(item.name)}</div>
-        <div class="item-price">ชิ้นละ ${formatPrice(item.price)} บาท</div>
+        <div class="item-price">${item.promoPrice != null ? `<span class="original-price">ชิ้นละ ${formatPrice(item.price)} บาท</span> <span class="promo-price">ชิ้นละ ${formatPrice(item.promoPrice)} บาท</span>` : `ชิ้นละ ${formatPrice(item.price)} บาท`}</div>
       </div>
     `;
     })
@@ -112,8 +119,10 @@ function openItemModal(itemId) {
   currentQty = 1;
   document.getElementById("modalItemImg").src = currentItem.image;
   document.getElementById("modalItemName").textContent = currentItem.name;
-  document.getElementById("modalItemPriceUnit").textContent =
-    `ชิ้นละ ${currentItem.price} บาท`;
+  document.getElementById("modalItemPriceUnit").innerHTML =
+    currentItem.promoPrice != null
+      ? `<span class="original-price">ชิ้นละ ${formatPrice(currentItem.price)} บาท</span> <span class="promo-price">ชิ้นละ ${formatPrice(currentItem.promoPrice)} บาท</span>`
+      : `ชิ้นละ ${formatPrice(currentItem.price)} บาท`;
   document.getElementById("modalStockInfo").textContent =
     `เหลือ ${available} ชิ้น`;
   updateQtyDisplay(available);
@@ -123,7 +132,7 @@ function openItemModal(itemId) {
 function updateQtyDisplay(maxQty) {
   document.getElementById("qtyDisplay").textContent = currentQty;
   document.getElementById("modalTotalPrice").textContent =
-    `${currentQty * currentItem.price} บาท`;
+    `${formatPrice(currentQty * getPrice(currentItem))} บาท`;
   document.getElementById("qtyMinus").disabled = currentQty <= 1;
   document.getElementById("qtyPlus").disabled = currentQty >= maxQty;
 }
@@ -185,7 +194,8 @@ function renderCart() {
   let total = 0;
   cartList.innerHTML = entries
     .map(([id, { item, qty }]) => {
-      const subtotal = item.price * qty;
+      const unitPrice = getPrice(item);
+      const subtotal = unitPrice * qty;
       total += subtotal;
       const maxQty = item.stock;
       const notEnough = qty > maxQty;
@@ -194,7 +204,7 @@ function renderCart() {
       <div class="cart-item${stockWarn}">
         <div class="cart-item-top">
           <span class="cart-item-name">${escapeHtml(item.name)}</span>
-          <span class="cart-item-price">${subtotal}฿</span>
+          <span class="cart-item-price">${formatPrice(subtotal)}฿</span>
         </div>
         <div class="cart-item-stock">เหลือ ${maxQty} ชิ้น${maxQty <= 0 ? ' — สินค้าหมดแล้ว!' : notEnough ? ' — ไม่พอ!' : ''}</div>
         <div class="cart-item-bottom">
@@ -203,7 +213,7 @@ function renderCart() {
             <span class="cart-item-qty">${qty}</span>
             <button class="cart-qty-btn" data-cart-action="plus" data-cart-id="${id}" ${qty >= maxQty ? "disabled" : ""} aria-label="เพิ่มจำนวน">+</button>
           </div>
-          <span class="cart-item-unit">ชิ้นละ ${item.price}฿</span>
+          <span class="cart-item-unit">ชิ้นละ ${formatPrice(unitPrice)}฿</span>
           <button class="cart-item-remove" data-cart-action="remove" data-cart-id="${id}" aria-label="ลบสินค้า">&times;</button>
         </div>
       </div>
@@ -229,7 +239,7 @@ function openSummaryModal() {
   const summaryList = document.getElementById("summaryList");
   summaryList.innerHTML = entries
     .map(([id, { item, qty }]) => {
-      const subtotal = item.price * qty;
+      const subtotal = getPrice(item) * qty;
       total += subtotal;
       const stockWarn = qty > item.stock ? 'summary-item-out' : item.stock <= 5 ? 'summary-item-low' : '';
       return `
@@ -237,14 +247,14 @@ function openSummaryModal() {
         <span>${escapeHtml(item.name)} x${qty}</span>
         <span class="summary-item-right">
           <span class="summary-item-stock">เหลือ ${item.stock}</span>
-          <span>${subtotal} บาท</span>
+          <span>${formatPrice(subtotal)} บาท</span>
         </span>
       </div>
     `;
     })
     .join("");
 
-  document.getElementById("summaryTotalPrice").textContent = `${total} บาท`;
+  document.getElementById("summaryTotalPrice").textContent = `${formatPrice(total)} บาท`;
   document.getElementById("inputFb").value = "";
   document.getElementById("inputCharName").value = "";
   document.getElementById("inputConfirmText").value = "";
@@ -273,7 +283,7 @@ function refreshSummary() {
   const summaryList = document.getElementById("summaryList");
   summaryList.innerHTML = entries
     .map(([id, { item, qty }]) => {
-      const subtotal = item.price * qty;
+      const subtotal = getPrice(item) * qty;
       total += subtotal;
       const stockWarn = qty > item.stock ? 'summary-item-out' : item.stock <= 5 ? 'summary-item-low' : '';
       return `
@@ -281,14 +291,14 @@ function refreshSummary() {
         <span>${escapeHtml(item.name)} x${qty}</span>
         <span class="summary-item-right">
           <span class="summary-item-stock">เหลือ ${item.stock}</span>
-          <span>${subtotal} บาท</span>
+          <span>${formatPrice(subtotal)} บาท</span>
         </span>
       </div>
     `;
     })
     .join("");
 
-  document.getElementById("summaryTotalPrice").textContent = `${total} บาท`;
+  document.getElementById("summaryTotalPrice").textContent = `${formatPrice(total)} บาท`;
 }
 
 function closeSummaryModal() {
@@ -452,7 +462,7 @@ async function submitOrder() {
         if (!doc.exists) throw new Error(`ไม่พบสินค้า ${cartItems[i].name}`);
 
         const serverData = doc.data();
-        const serverPrice = Number(serverData.price) || 0;
+        const serverPrice = serverData.promoPrice != null ? Number(serverData.promoPrice) : (Number(serverData.price) || 0);
         const serverStock = Number(serverData.stock) || 0;
 
         if (serverStock < cartItems[i].qty) {
@@ -818,7 +828,7 @@ function listenShopStatus() {
 }
 
 // ============ TOAST PERSISTENCE ============
-const TOAST_DURATION = 30000;
+const TOAST_DURATION = 300000; // 5 นาที
 
 function showChangedToast(changed) {
   showOrderToast(changed, TOAST_DURATION);

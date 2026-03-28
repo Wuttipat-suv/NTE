@@ -21,6 +21,7 @@ service cloud.firestore {
 
       match /stockHistory/{historyId} {
         allow read: if true;
+        allow delete: if isAdmin();
         allow create: if isAdmin()
                       && request.resource.data.qty is number
                       && request.resource.data.addedBy is string
