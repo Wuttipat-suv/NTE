@@ -3,8 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PEERAPONG SHOP - Admin</title>
-    <link rel="stylesheet" href="css/style.css?v=3" />
+    <title>BubbleShop - Admin</title>
+    <link rel="icon" type="image/png" href="assets/jin-arc-trace.png" />
+    <link rel="stylesheet" href="css/style.css?v=8" />
   </head>
   <body>
     <!-- PASSWORD MODAL -->
@@ -12,11 +13,12 @@
       <div class="modal">
         <h2>เข้าสู่ระบบแอดมิน</h2>
         <div class="form-group">
-          <label>รหัสผ่าน</label>
+          <label for="passwordInput">รหัสผ่าน</label>
           <input
             type="password"
             id="passwordInput"
             placeholder="กรอกรหัสผ่าน"
+            autocomplete="current-password"
           />
         </div>
         <button class="btn-primary" id="passwordSubmit">เข้าสู่ระบบ</button>
@@ -28,9 +30,7 @@
             margin-top: 10px;
             display: none;
           "
-        >
-          รหัสผ่านไม่ถูกต้อง
-        </p>
+        ></p>
       </div>
     </div>
 
@@ -38,10 +38,11 @@
     <div id="adminContent" style="display: none">
       <!-- HEADER -->
       <header class="header">
-        <h1>PEERAPONG SHOP - ADMIN</h1>
-        <a href="index.html" class="btn-secondary" style="text-decoration: none"
-          >กลับหน้าร้าน</a
-        >
+        <h1>BubbleShop - ADMIN</h1>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <button class="btn-shop-toggle closed" id="shopToggleBtn">กำลังโหลด...</button>
+          <a href="index.html" class="btn-secondary" style="text-decoration: none">กลับหน้าร้าน</a>
+        </div>
       </header>
 
       <div class="admin-container">
@@ -117,17 +118,13 @@
           style="text-align: center; color: #ffb6c1; margin-bottom: 15px"
         ></p>
         <div class="form-group">
-          <label>จำนวนที่เพิ่ม</label>
+          <label for="addStockQty">จำนวนที่เพิ่ม</label>
           <input type="number" id="addStockQty" placeholder="0" min="1" />
           <p class="field-error" id="addStockQtyError"></p>
         </div>
         <div class="form-group">
-          <label>ชื่อคนเพิ่ม</label>
-          <select id="addStockBy">
-            <option value="">-- เลือกแอดมิน --</option>
-            <option value="พี">พี</option>
-            <option value="เลย์">เลย์</option>
-          </select>
+          <label for="addStockBy">ชื่อคนเพิ่ม</label>
+          <select id="addStockBy"></select>
           <p class="field-error" id="addStockByError"></p>
         </div>
         <div class="modal-buttons">
@@ -145,9 +142,10 @@
           id="stockHistoryItemName"
           style="text-align: center; color: #ffb6c1; margin-bottom: 15px"
         ></p>
+        <div id="stockHistorySummary"></div>
         <div
           id="stockHistoryList"
-          style="max-height: 400px; overflow-y: auto"
+          style="max-height: 300px; overflow-y: auto"
         ></div>
         <div class="modal-buttons" style="justify-content: center">
           <button class="btn-secondary" id="closeStockHistory">ปิด</button>
@@ -160,12 +158,12 @@
       <div class="modal">
         <h2>แก้ไขสินค้า</h2>
         <div class="form-group">
-          <label>ชื่อสินค้า</label>
+          <label for="editName">ชื่อสินค้า</label>
           <input type="text" id="editName" />
           <p class="field-error" id="editNameError"></p>
         </div>
         <div class="form-group">
-          <label>ราคา (บาท)</label>
+          <label for="editPrice">ราคา (บาท)</label>
           <input type="number" id="editPrice" min="0" />
           <p class="field-error" id="editPriceError"></p>
         </div>
@@ -174,6 +172,7 @@
           <div class="image-upload-area" id="editImageUploadArea">
             <img
               id="editImagePreview"
+              alt="ตัวอย่างรูปสินค้า"
               style="
                 display: none;
                 max-width: 120px;
@@ -206,26 +205,22 @@
       <div class="modal">
         <h2>เพิ่มสินค้าใหม่</h2>
         <div class="form-group">
-          <label>ชื่อสินค้า</label>
+          <label for="pName">ชื่อสินค้า</label>
           <input type="text" id="pName" placeholder="ชื่อไอเทม" />
           <p class="field-error" id="pNameError"></p>
         </div>
         <div class="form-group">
-          <label>ชื่อแอดมินที่เพิ่ม</label>
-          <select id="pAddedBy">
-            <option value="">-- เลือกแอดมิน --</option>
-            <option value="พี">พี</option>
-            <option value="เลย์">เลย์</option>
-          </select>
+          <label for="pAddedBy">ชื่อแอดมินที่เพิ่ม</label>
+          <select id="pAddedBy"></select>
           <p class="field-error" id="pAddedByError"></p>
         </div>
         <div class="form-group">
-          <label>ราคา (บาท)</label>
+          <label for="pPrice">ราคา (บาท)</label>
           <input type="number" id="pPrice" placeholder="0" min="0" />
           <p class="field-error" id="pPriceError"></p>
         </div>
         <div class="form-group">
-          <label>จำนวน Stock</label>
+          <label for="pStock">จำนวน Stock</label>
           <input type="number" id="pStock" placeholder="0" min="0" />
           <p class="field-error" id="pStockError"></p>
         </div>
@@ -234,6 +229,7 @@
           <div class="image-upload-area" id="addImageUploadArea">
             <img
               id="addImagePreview"
+              alt="ตัวอย่างรูปสินค้า"
               style="
                 display: none;
                 max-width: 120px;
@@ -277,8 +273,8 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="js/firebase-config.js"></script>
-    <script src="js/modal-alert.js?v=3"></script>
-    <script src="js/admin.js?v=6"></script>
+    <script src="js/firebase-config.js?v=5"></script>
+    <script src="js/modal-alert.js?v=5"></script>
+    <script src="js/admin.js?v=9"></script>
   </body>
 </html>

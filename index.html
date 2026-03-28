@@ -3,13 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PEERAPONG SHOP</title>
-    <link rel="stylesheet" href="css/style.css?v=3" />
+    <title>BubbleShop</title>
+    <link rel="icon" type="image/png" href="assets/jin-arc-trace.png" />
+    <link rel="stylesheet" href="css/style.css?v=8" />
   </head>
   <body>
     <!-- HEADER -->
     <header class="header">
-      <h1>PEERAPONG SHOP</h1>
+      <h1>BubbleShop</h1>
+      <a href="https://www.facebook.com/p.peerapong.2024" target="_blank" rel="noopener" class="header-fb-link" aria-label="Facebook">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+      </a>
+      <div class="toast-container" id="toastContainer"></div>
       <div class="total-items" id="totalItems">TOTAL 0 ITEMS</div>
     </header>
 
@@ -19,6 +24,12 @@
         <div class="nav-tabs">
           <button class="nav-tab active" data-tab="shop">ร้านค้า</button>
           <button class="nav-tab" data-tab="history">ประวัติการสั่ง</button>
+        </div>
+
+        <!-- SHOP CLOSED BANNER -->
+        <div class="shop-closed-banner" id="shopClosedBanner">
+          <h2>ร้านปิดอยู่</h2>
+          <p>ขณะนี้ร้านยังไม่เปิดให้บริการ กรุณากลับมาใหม่ภายหลังนะครับ</p>
         </div>
 
         <!-- SHOP SECTION -->
@@ -41,18 +52,34 @@
         </div>
       </div>
 
-      <!-- SIDE PANEL (ตะกร้า) -->
-      <div class="side-panel" id="sidePanel">
-        <h3>รายการที่เลือก</h3>
-        <div id="cartList">
-          <div class="cart-empty">ยังไม่ได้เลือกสินค้า</div>
+      <!-- RIGHT COLUMN -->
+      <div class="right-column" id="rightColumn">
+        <!-- SIDE PANEL (ตะกร้า) -->
+        <div class="side-panel" id="sidePanel">
+          <h3>รายการที่เลือก</h3>
+          <div id="cartList">
+            <div class="cart-empty">ยังไม่ได้เลือกสินค้า</div>
+          </div>
+          <div class="cart-total" id="cartTotal" style="display: none">
+            รวม: <span id="cartTotalPrice">0</span> บาท
+          </div>
+          <button class="btn-primary" id="summaryBtn" disabled>สรุปสินค้า</button>
         </div>
-        <div class="cart-total" id="cartTotal" style="display: none">
-          รวม: <span id="cartTotalPrice">0</span> บาท
+
+        <!-- CREDIT PANEL -->
+        <div class="credit-panel" id="creditPanel">
+          <h3>เครดิตร้าน</h3>
+          <a href="https://www.facebook.com/photo?fbid=4362589167304489" target="_blank" rel="noopener" class="credit-img-link">
+            <img src="assets/credit.jpg" alt="เครดิตร้าน">
+            <span>คลิกเพื่อดูเครดิตร้าน</span>
+          </a>
+          <div class="credit-info">
+            <a href="https://www.facebook.com/p.peerapong.2024" target="_blank" rel="noopener" class="credit-fb-link">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+              P'Peerapong
+            </a>
+          </div>
         </div>
-        <button class="btn-primary" id="summaryBtn" disabled>
-          สรุปสินค้า
-        </button>
       </div>
     </div>
 
@@ -64,9 +91,9 @@
         <div class="modal-item-price-unit" id="modalItemPriceUnit"></div>
         <div class="modal-stock-info" id="modalStockInfo"></div>
         <div class="qty-selector">
-          <button class="qty-btn" id="qtyMinus">-</button>
+          <button class="qty-btn" id="qtyMinus" aria-label="ลดจำนวน">-</button>
           <div class="qty-display" id="qtyDisplay">1</div>
-          <button class="qty-btn" id="qtyPlus">+</button>
+          <button class="qty-btn" id="qtyPlus" aria-label="เพิ่มจำนวน">+</button>
         </div>
         <div class="modal-total-price" id="modalTotalPrice">0 บาท</div>
         <div class="modal-buttons">
@@ -86,7 +113,7 @@
           <span id="summaryTotalPrice">0 บาท</span>
         </div>
         <div class="form-group">
-          <label>Facebook</label>
+          <label for="inputFb">Facebook</label>
           <input
             type="text"
             id="inputFb"
@@ -96,7 +123,7 @@
           <p class="field-error" id="inputFbError"></p>
         </div>
         <div class="form-group">
-          <label>ชื่อตัวละคร</label>
+          <label for="inputCharName">ชื่อตัวละคร</label>
           <input
             type="text"
             id="inputCharName"
@@ -105,10 +132,29 @@
           />
           <p class="field-error" id="inputCharNameError"></p>
         </div>
-        <div class="warning-text">
-          หากกรอกข้อมูลผิดกรุณาแจ้ง fb: P'Peerapong<br />
-          หากกรอกผิดและไม่แจ้ง จะถือว่าไม่รับผิดชอบ
+        <!-- Honeypot: ซ่อนจากคน bot จะกรอก -->
+        <div class="form-group" style="position:absolute;left:-9999px;opacity:0;height:0;overflow:hidden;" aria-hidden="true">
+          <label>อย่ากรอกช่องนี้</label>
+          <input type="text" id="inputWebsite" tabindex="-1" autocomplete="off" />
         </div>
+        <div class="captcha-box">
+          <label for="inputConfirmText">พิมพ์ตัวเลขที่เห็นเพื่อยืนยัน</label>
+          <div class="captcha-display" id="captchaDisplay"></div>
+          <input
+            type="text"
+            id="inputConfirmText"
+            placeholder="พิมพ์ตัวเลข 4 หลัก"
+            maxlength="4"
+            autocomplete="off"
+            inputmode="numeric"
+          />
+          <p class="field-error" id="inputConfirmTextError"></p>
+        </div>
+        <label class="confirm-checkbox">
+          <input type="checkbox" id="confirmCheckbox" />
+          <span>ข้าพเจ้ายืนยันว่าข้อมูลที่กรอกถูกต้อง หากกรอกผิดพลาดและไม่แจ้งแอดมิน (<a href="https://www.facebook.com/p.peerapong.2024" target="_blank" rel="noopener" style="color:#ff69b4;text-decoration:underline;">FB:P'Peerapong</a>) จะถือว่ายอมรับผลที่เกิดขึ้นทุกกรณี</span>
+        </label>
+        <p class="field-error" id="confirmCheckboxError"></p>
         <div class="modal-buttons">
           <button class="btn-secondary" id="summaryCancel">ยกเลิก</button>
           <button class="btn-primary" id="summaryConfirm">
@@ -150,8 +196,8 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="js/firebase-config.js"></script>
-    <script src="js/modal-alert.js?v=3"></script>
-    <script src="js/shop.js?v=3"></script>
+    <script src="js/firebase-config.js?v=5"></script>
+    <script src="js/modal-alert.js?v=6"></script>
+    <script src="js/shop.js?v=8"></script>
   </body>
 </html>

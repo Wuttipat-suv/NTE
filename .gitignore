@@ -12,3 +12,5 @@ setup-admin.html
 # Test files
 test-order.html
 clear-orders.html
+review-*.md
+REVIEW.md

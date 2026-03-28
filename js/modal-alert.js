@@ -6,7 +6,7 @@ function escapeHtml(str) {
   if (str == null) return '';
   const div = document.createElement('div');
   div.textContent = String(str);
-  return div.innerHTML;
+  return div.innerHTML.replace(/'/g, '&#39;');
 }
 
 // ============================================
@@ -42,14 +42,93 @@ function closeAlertModal() {
 }
 
 // ============ Toast Notification ============
-function showToast(msg, duration) {
+const TOAST_MAX = 3;
+const _toastQueue = [];
+let _activeToasts = 0;
+
+function getToastContainer() {
+  return document.getElementById('toastContainer');
+}
+
+function _processToastQueue() {
+  while (_toastQueue.length > 0 && _activeToasts < TOAST_MAX) {
+    const data = _toastQueue.shift();
+    _showToastNow(data);
+  }
+}
+
+function _showToastNow(data) {
+  _activeToasts++;
+  const container = getToastContainer();
   const toast = document.createElement('div');
   toast.className = 'toast-notification';
-  toast.textContent = msg;
-  document.body.appendChild(toast);
+
+  if (data.items && data.items.length > 0) {
+    // Order toast: หลายสินค้าพร้อมรูป
+    const label = document.createElement('span');
+    label.className = 'toast-label';
+    label.textContent = 'มีลูกค้าซื้อ';
+    toast.appendChild(label);
+    const itemsWrap = document.createElement('div');
+    itemsWrap.className = 'toast-items';
+    for (const item of data.items) {
+      const row = document.createElement('div');
+      row.className = 'toast-item-row';
+      if (item.image) {
+        const img = document.createElement('img');
+        img.src = item.image;
+        img.alt = '';
+        img.className = 'toast-img';
+        row.appendChild(img);
+      }
+      const name = document.createElement('span');
+      name.textContent = `${item.name} x${item.qty}`;
+      row.appendChild(name);
+      itemsWrap.appendChild(row);
+    }
+    toast.appendChild(itemsWrap);
+  } else {
+    // Simple toast
+    if (data.imgSrc) {
+      const img = document.createElement('img');
+      img.src = data.imgSrc;
+      img.alt = '';
+      img.className = 'toast-img';
+      toast.appendChild(img);
+    }
+    const text = document.createElement('span');
+    text.textContent = data.msg;
+    toast.appendChild(text);
+  }
+
+  if (!container) { _activeToasts--; return; }
+  container.appendChild(toast);
   requestAnimationFrame(() => toast.classList.add('show'));
   setTimeout(() => {
     toast.classList.remove('show');
-    setTimeout(() => toast.remove(), 300);
-  }, duration || 4000);
+    toast.classList.add('hide');
+    setTimeout(() => {
+      toast.remove();
+      _activeToasts--;
+      _processToastQueue();
+    }, 600);
+  }, data.duration || 5000);
+}
+
+function showToast(msg, duration, imgSrc) {
+  const data = { msg, duration, imgSrc };
+  if (_activeToasts < TOAST_MAX) {
+    _showToastNow(data);
+  } else {
+    _toastQueue.push(data);
+  }
+}
+
+function showOrderToast(items, duration) {
+  const data = { items, duration };
+  if (_activeToasts < TOAST_MAX) {
+    _showToastNow(data);
+  } else {
+    _toastQueue.push(data);
+  }
 }

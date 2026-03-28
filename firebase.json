@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "telesrunner-peerapong",
+    "site": "talesrunner-bubbleshop",
     "public": ".",
     "ignore": [
       "firebase.json",
@@ -8,9 +8,15 @@
       "firestore.indexes.json",
       "test-order.html",
       "clear-orders.html",
+      "prompt.md",
+      "REVIEW.md",
+      "TODO-SECURITY.md",
+      "review-*.md",
+      "MEMORY.md",
+      "package.json",
+      "package-lock.json",
       "**/.*",
-      "**/node_modules/**",
-      "prompt.md"
+      "**/node_modules/**"
     ],
     "headers": [
       {
@@ -20,12 +26,6 @@
       {
         "source": "**/*.css",
         "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
-      }
-    ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
       }
     ]
   },
