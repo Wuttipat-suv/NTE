@@ -1518,42 +1518,48 @@ body {
 }
 
 /* ============ STOCK +/- BUTTONS ============ */
+.stock-btn-group {
+  display: inline-flex;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid rgba(155, 77, 202, 0.4);
+}
+
 .btn-stock-add,
 .btn-stock-reduce {
-  width: 32px;
-  height: 28px;
-  border-radius: 6px;
-  font-family: 'Kanit', sans-serif;
-  font-size: 16px;
+  width: 36px;
+  height: 32px;
+  border: none;
+  font-family: monospace;
+  font-size: 18px;
   font-weight: 700;
+  line-height: 1;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  vertical-align: middle;
 }
 
 .btn-stock-add {
-  background: rgba(76, 175, 80, 0.15);
-  border: 2px solid #4caf50;
+  background: rgba(76, 175, 80, 0.2);
   color: #4caf50;
+  border-right: 1px solid rgba(155, 77, 202, 0.3);
 }
 
 .btn-stock-add:hover {
-  background: rgba(76, 175, 80, 0.4);
+  background: rgba(76, 175, 80, 0.5);
   color: #fff;
 }
 
 .btn-stock-reduce {
-  background: rgba(255, 68, 68, 0.15);
-  border: 2px solid #ff4444;
+  background: rgba(255, 68, 68, 0.2);
   color: #ff4444;
 }
 
 .btn-stock-reduce:hover {
-  background: rgba(255, 68, 68, 0.4);
+  background: rgba(255, 68, 68, 0.5);
   color: #fff;
 }
 
