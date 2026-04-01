@@ -196,7 +196,7 @@ async function submitOrder() {
     showFieldError("confirmCheckboxError", "กรุณายอมรับเงื่อนไขก่อนสั่งซื้อ");
     hasError = true;
   }
-  if (!slipImageBase64 && (typeof paymentEnabled === 'undefined' || paymentEnabled)) {
+  if (!slipImageBase64 && customerPayMode === 'pay' && (typeof paymentEnabled === 'undefined' || paymentEnabled)) {
     showFieldError("slipUploadError", "กรุณาอัปโหลดรูปภาพสลิปโอนเงิน");
     hasError = true;
   }
@@ -327,6 +327,7 @@ async function submitOrder() {
         status: "pending",
         _hp: "",
         slipImage: slipImageBase64 || null,
+        paymentMode: customerPayMode === 'pay' ? 'paid' : 'unpaid',
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       };
       if (couponData) {

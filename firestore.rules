@@ -72,7 +72,7 @@ service cloud.firestore {
                         && request.resource.data.items == resource.data.items
                         && request.resource.data.totalPrice == resource.data.totalPrice);
 
-      allow delete: if false;
+      allow delete: if isAdmin();
     }
 
     // ============ STATS ============

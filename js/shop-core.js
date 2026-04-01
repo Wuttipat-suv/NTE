@@ -43,6 +43,7 @@ let currentItem = null;
 let currentQty = 1;
 let shopOpen = true;
 let paymentEnabled = true;
+let customerPayMode = 'pay'; // 'pay' = โอนเลย, 'order' = สั่งก่อน
 
 // Payment & Coupon State
 let currentPromptPay = "0834405857"; // เปลี่ยนเบอร์พร้อมเพย์รับเงินตรงนี้
@@ -265,6 +266,7 @@ function updateShopHours() {
 document.addEventListener("DOMContentLoaded", () => {
   setupTabs();
   setupEscapeKey();
+  setupPaymentModeToggle();
   loadItems();
   loadStats();
   loadBlocklist();
@@ -623,8 +625,28 @@ function applyShopStatus() {
 
 function applyPaymentStatus() {
   const paymentSection = document.getElementById("paymentSection");
+  const toggleWrap = document.getElementById("paymentToggleWrap");
   if (!paymentSection) return;
-  paymentSection.style.display = paymentEnabled ? "" : "none";
+
+  // แสดง toggle เสมอ ให้ลูกค้าเลือกเอง
+  if (toggleWrap) toggleWrap.style.display = "";
+  paymentSection.style.display = customerPayMode === 'pay' ? "" : "none";
+}
+
+function setupPaymentModeToggle() {
+  const btnPay = document.getElementById("btnPayNow");
+  const btnOrder = document.getElementById("btnOrderFirst");
+  if (!btnPay || !btnOrder) return;
+
+  function setMode(mode) {
+    customerPayMode = mode;
+    btnPay.classList.toggle("active", mode === "pay");
+    btnOrder.classList.toggle("active", mode === "order");
+    applyPaymentStatus();
+  }
+
+  btnPay.addEventListener("click", () => setMode("pay"));
+  btnOrder.addEventListener("click", () => setMode("order"));
 }
 
 function listenShopStatus() {
