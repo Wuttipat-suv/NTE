@@ -437,6 +437,8 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     } else if (action === 'ban') {
       blockFacebook(btn.dataset.fb);
+    } else if (action === 'deleteOrder') {
+      deleteOrder(btn.dataset.id);
     }
   });
 

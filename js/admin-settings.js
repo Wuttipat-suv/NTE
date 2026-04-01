@@ -197,7 +197,7 @@ function updateFaviconAndTitle(pendingCount) {
     }
     link.href = canvas.toDataURL('image/png');
   };
-  img.src = 'assets/jin-arc-trace.png';
+  img.src = 'pic/jin-arc-trace.png';
 }
 
 function loadOrders() {
@@ -275,6 +275,7 @@ function loadOrders() {
 
         return `
           <div class="admin-order-card ${isNew ? 'order-new' : ''}" data-order-id="${docId}">
+            ${isOwner ? `<button class="btn-delete-order" data-action="deleteOrder" data-id="${docId}" title="ลบ order">&times;</button>` : ''}
             ${isNew ? '<span class="new-badge">ใหม่</span>' : ''}
             <div class="admin-order-header">
               <span style="font-weight:600;color:#e0b0ff;">#${orderNum}</span>

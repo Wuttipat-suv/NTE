@@ -2,6 +2,8 @@
 .claude/
 node_modules/
 bug/
+md/
+pic/
 fix-images.html
 storage.rules
 

@@ -156,6 +156,20 @@ async function confirmDeliver() {
   }
 }
 
+// ============ DELETE ORDER (Owner only — ลบถาวร) ============
+async function deleteOrder(orderId) {
+  const yes = await showConfirm('ลบ order นี้ถาวร?\n(จะไม่คืน stock หรือคูปอง — ใช้สำหรับลบ order ขยะ/ทดสอบ)', 'ยืนยันลบ');
+  if (!yes) return;
+
+  try {
+    await db.collection('orders').doc(orderId).delete();
+    delete loadedOrdersCache[orderId];
+    showToast('ลบ order แล้ว');
+  } catch (e) {
+    showAlert('ลบไม่ได้: ' + e.message, 'ผิดพลาด');
+  }
+}
+
 // ============ CANCEL ORDER (Transaction) ============
 async function cancelOrder(orderId) {
   try {
@@ -303,13 +317,34 @@ function updateRevenueSummary(orderDocs) {
     });
   });
 
-  // Sort by revenue desc
-  const sorted = Object.entries(adminRevenue).sort((a, b) => b[1] - a[1]);
+  // หัก com 5% จากแอดมินที่ไม่ใช่ owner
+  const COM_RATE = 0.05;
+  const adminRevenueNet = {};
+  const adminComAmount = {};
+  for (const [name, rev] of Object.entries(adminRevenue)) {
+    // เช็คว่าเป็น owner หรือไม่ — owner ไม่โดนหัก
+    const isAdminOwner = name === currentAdminName && isOwner;
+    // ถ้าดูจาก owner มุมมอง: ต้องเช็คจาก adminNames + role
+    // วิธีง่าย: owner คือคนที่ login อยู่ตอนนี้ (isOwner && name === currentAdminName)
+    // คนอื่นหัก com หมด
+    if (isAdminOwner) {
+      adminRevenueNet[name] = rev;
+      adminComAmount[name] = 0;
+    } else {
+      const com = rev * COM_RATE;
+      adminRevenueNet[name] = rev - com;
+      adminComAmount[name] = com;
+    }
+  }
+
+  // Sort by net revenue desc
+  const sorted = Object.entries(adminRevenueNet).sort((a, b) => b[1] - a[1]);
+  const totalCom = Object.values(adminComAmount).reduce((s, v) => s + v, 0);
 
   container.style.display = 'block';
 
   if (isOwner) {
-    // Owner: เห็นยอดรวมทั้งหมด + ทุก admin
+    // Owner: เห็นยอดรวมทั้งหมด + ทุก admin (หลังหัก com)
     container.innerHTML = `
       <div class="revenue-summary">
         <div class="revenue-header">
@@ -319,11 +354,15 @@ function updateRevenueSummary(orderDocs) {
             <button class="btn-secondary" style="padding:4px 10px;font-size:11px;width:auto;color:#ff9800;border-color:#ff9800;" onclick="resetRevenueSummary()">รีเซ็ต</button>
           </span>
         </div>
+        ${totalCom > 0 ? `<div style="text-align:right;font-size:12px;color:#4CAF50;margin:-4px 0 8px;">รายได้ค่า com 5%: +${formatPrice(Math.round(totalCom))} ฿</div>` : ''}
         ${sorted.length > 0 ? `<div class="revenue-cards">
-          ${sorted.map(([name, rev], i) => {
-            const pct = totalRevenue > 0 ? Math.round((rev / totalRevenue) * 100) : 0;
+          ${sorted.map(([name, netRev], i) => {
+            const grossRev = adminRevenue[name] || 0;
+            const com = adminComAmount[name] || 0;
+            const pct = totalRevenue > 0 ? Math.round((grossRev / totalRevenue) * 100) : 0;
             const rank = i + 1;
             const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
+            const comText = com > 0 ? `<span style="color:#ff9800;font-size:11px;"> (-${formatPrice(Math.round(com))} com)</span>` : '';
             return `
               <div class="revenue-card-v2">
                 <div class="rev-card-rank">${medal || '#' + rank}</div>
@@ -334,7 +373,7 @@ function updateRevenueSummary(orderDocs) {
                   </div>
                   <div class="rev-card-stats">${adminItemCount[name] || 0} ชิ้น · ${adminOrderCount[name] || 0} orders · ${pct}%</div>
                 </div>
-                <div class="rev-card-amount">${formatPrice(Math.round(rev))} ฿</div>
+                <div class="rev-card-amount">${formatPrice(Math.round(netRev))} ฿${comText}</div>
               </div>
             `;
           }).join('')}
@@ -342,21 +381,18 @@ function updateRevenueSummary(orderDocs) {
       </div>
     `;
   } else {
-    // Admin ทั่วไป: เห็นแค่ยอดตัวเอง
-    const myRev = adminRevenue[currentAdminName] || 0;
+    // Admin ทั่วไป: เห็นแค่ยอดตัวเอง (หลังหัก com แบบเงียบ)
+    const myNet = adminRevenueNet[currentAdminName] || 0;
     const myItems = adminItemCount[currentAdminName] || 0;
     const myOrders = adminOrderCount[currentAdminName] || 0;
-    const myPct = totalRevenue > 0 ? Math.round((myRev / totalRevenue) * 100) : 0;
+    const myGross = adminRevenue[currentAdminName] || 0;
+    const myPct = totalRevenue > 0 ? Math.round((myGross / totalRevenue) * 100) : 0;
 
     container.innerHTML = `
       <div class="revenue-summary revenue-my">
         <div class="revenue-my-label">ยอดขายของฉัน</div>
-        <div class="revenue-my-amount">${formatPrice(Math.round(myRev))} ฿</div>
+        <div class="revenue-my-amount">${formatPrice(Math.round(myNet))} ฿</div>
         <div class="revenue-my-stats">${myItems} ชิ้น · ${myOrders} orders</div>
-        <div class="revenue-my-bar-wrap">
-          <div class="rev-card-bar" style="width:${myPct}%"></div>
-        </div>
-        <div class="revenue-my-pct">${myPct}% ของยอดรวม</div>
       </div>
     `;
   }
