@@ -227,107 +227,122 @@ function loadOrders() {
     unsubOrders = null;
   }
 
-  unsubOrders = db.collection('orders')
+  const query = db.collection('orders')
     .orderBy('createdAt', 'desc')
-    .limit(currentOrderLimit)
-    .onSnapshot(snapshot => {
-      // นับสถานะ
-      let pending = 0, completed = 0, cancelled = 0;
-      snapshot.docs.forEach(doc => {
-        const s = doc.data().status || 'pending';
-        if (s === 'pending') pending++;
-        else if (s === 'completed') completed++;
-        else if (s === 'cancelled') cancelled++;
-      });
+    .limit(currentOrderLimit);
 
-      document.getElementById('pendingCounter').textContent = 'รอดำเนินการ: ' + pending;
-      document.getElementById('completedCounter').textContent = 'เสร็จแล้ว: ' + completed;
-      document.getElementById('cancelledCounter').textContent = 'ยกเลิก: ' + cancelled;
-
-      // Update Tab Title & Favicon
-      updateFaviconAndTitle(pending);
-
-      // หา order ใหม่
-      const newIds = new Set();
-      if (!firstLoad) {
-        snapshot.docs.forEach(doc => {
-          if (!knownOrderIds.has(doc.id)) newIds.add(doc.id);
-        });
-        if (newIds.size > 0) {
-          showToast('Order ใหม่ +' + newIds.size + ' | รอดำเนินการ: ' + pending);
-        }
-      }
-      knownOrderIds = new Set(snapshot.docs.map(doc => doc.id));
-      firstLoad = false;
-
-      const loadMoreBtn = document.getElementById('loadMoreOrdersBtn');
-      if (loadMoreBtn) {
-        loadMoreBtn.style.display = snapshot.docs.length >= currentOrderLimit ? 'inline-block' : 'none';
-      }
-
-      if (snapshot.empty) {
-        board.innerHTML = '<p style="color:#aaa;text-align:center;">ยังไม่มี order</p>';
-        return;
-      }
-
-      const total = snapshot.docs.length;
-      board.innerHTML = snapshot.docs.map((doc, index) => {
-        const order = doc.data();
-        loadedOrdersCache[doc.id] = order; // เซฟลง cache
-        
-        const date = order.createdAt ? order.createdAt.toDate().toLocaleString('th-TH') : '-';
-        const items = Array.isArray(order.items) ? order.items : [];
-        const deliveries = Array.isArray(order.deliveries) ? order.deliveries : [];
-        const itemsText = items.map(i => {
-          const delivered = deliveries.filter(d => d.itemId === i.itemId).reduce((s, d) => s + d.qty, 0);
-          const deliverInfo = delivered > 0
-            ? ` <span style="color:${delivered >= i.qty ? '#4caf50' : '#ff9800'};font-size:12px;">(ส่งแล้ว ${delivered}/${i.qty})</span>`
-            : '';
-          return `${escapeHtml(i.name)} x${i.qty}${deliverInfo}`;
-        }).join('<br>');
-        const status = order.status || 'pending';
-        const isNew = newIds.has(doc.id);
-        const orderNum = total - index;
-        const docId = escapeHtml(doc.id);
-        const fbEscaped = escapeHtml(order.facebook);
-
-        return `
-          <div class="admin-order-card ${isNew ? 'order-new' : ''}" data-order-id="${docId}">
-            ${isOwner ? `<button class="btn-delete-order" data-action="deleteOrder" data-id="${docId}" title="ลบ order">&times;</button>` : ''}
-            ${isNew ? '<span class="new-badge">ใหม่</span>' : ''}
-            <div class="admin-order-header">
-              <span style="font-weight:600;color:#e0b0ff;">#${orderNum}</span>
-              <span style="font-weight:600;">FB: ${fbEscaped}</span>
-              <span style="font-size:13px;color:#aaa;">${date}</span>
-            </div>
-            <div class="admin-order-info">
-              <div>ตัวละคร: <strong>${escapeHtml(order.characterName)}</strong></div>
-              ${order.couponCode ? `<div style="color:#ffeb3b; font-size:13px; margin-top:3px;">🎟️ คูปอง: ${escapeHtml(order.couponCode)} (-${formatPrice(order.discountAmount)} บาท)</div>` : ''}
-              <div style="margin-top:8px;">${itemsText}</div>
-              <div style="color:#ff69b4;font-weight:600;margin-top:8px;">
-                รวม ${formatPrice(order.totalPrice)} บาท
-                ${order.originalPrice && order.originalPrice !== order.totalPrice ? `<span style="text-decoration:line-through;color:#aaa;font-size:12px;margin-left:5px;">${formatPrice(order.originalPrice)}</span>` : ''}
-              </div>
-              <div style="margin-top:8px;">
-                ${(order.slipImage || order.hasSlip) ? `<button class="btn-table secondary" data-action="viewSlip" data-id="${docId}">ดูสลิปโอนเงิน</button>` : '<span style="color:#ff4444; font-size:12px;">ไม่มีสลิปโอนเงิน</span>'}
-              </div>
-            </div>
-            <div class="admin-order-actions">
-              <span class="order-status-badge ${status}">${status === 'pending' ? 'รอดำเนินการ' : status === 'completed' ? 'เสร็จแล้ว' : 'ยกเลิก'}</span>
-              ${status === 'pending' ? `<button class="btn-order-action btn-order-complete" data-action="deliver" data-id="${docId}">&#128666; ส่งของ</button>` : ''}
-              ${status === 'pending' ? `<button class="btn-order-action btn-order-cancel" data-action="cancel" data-id="${docId}">&#10005; ยกเลิก</button>` : ''}
-              <button class="btn-order-action btn-order-ban" data-action="ban" data-fb="${fbEscaped}">BAN</button>
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      // อัปเดตสรุปยอดขาย
-      if (typeof updateRevenueSummary === 'function') updateRevenueSummary(snapshot.docs);
-    }, e => {
+  // Quota saving mode → ใช้ .get() ครั้งเดียว
+  if (_quotaSaving) {
+    query.get().then(snapshot => processOrderSnapshot(snapshot, board)).catch(e => {
       console.error(e);
+      if (typeof handleQuotaError === 'function') handleQuotaError(e, 'loadOrders');
       board.innerHTML = '<p style="color:#ff6b6b;text-align:center;">โหลด order ไม่ได้</p>';
     });
+    return;
+  }
+
+  unsubOrders = query.onSnapshot(
+    snapshot => processOrderSnapshot(snapshot, board),
+    e => {
+      console.error(e);
+      if (typeof handleQuotaError === 'function') handleQuotaError(e, 'loadOrders');
+      board.innerHTML = '<p style="color:#ff6b6b;text-align:center;">โหลด order ไม่ได้</p>';
+    }
+  );
+}
+
+function processOrderSnapshot(snapshot, board) {
+  // นับสถานะ
+  let pending = 0, completed = 0, cancelled = 0;
+  snapshot.docs.forEach(doc => {
+    const s = doc.data().status || 'pending';
+    if (s === 'pending') pending++;
+    else if (s === 'completed') completed++;
+    else if (s === 'cancelled') cancelled++;
+  });
+
+  document.getElementById('pendingCounter').textContent = 'รอดำเนินการ: ' + pending;
+  document.getElementById('completedCounter').textContent = 'เสร็จแล้ว: ' + completed;
+  document.getElementById('cancelledCounter').textContent = 'ยกเลิก: ' + cancelled;
+
+  updateFaviconAndTitle(pending);
+
+  const newIds = new Set();
+  if (!firstLoad) {
+    snapshot.docs.forEach(doc => {
+      if (!knownOrderIds.has(doc.id)) newIds.add(doc.id);
+    });
+    if (newIds.size > 0) {
+      showToast('Order ใหม่ +' + newIds.size + ' | รอดำเนินการ: ' + pending);
+    }
+  }
+  knownOrderIds = new Set(snapshot.docs.map(doc => doc.id));
+  firstLoad = false;
+
+  const loadMoreBtn = document.getElementById('loadMoreOrdersBtn');
+  if (loadMoreBtn) {
+    loadMoreBtn.style.display = snapshot.docs.length >= currentOrderLimit ? 'inline-block' : 'none';
+  }
+
+  if (snapshot.empty) {
+    board.innerHTML = '<p style="color:#aaa;text-align:center;">ยังไม่มี order</p>';
+    return;
+  }
+
+  const total = snapshot.docs.length;
+  board.innerHTML = snapshot.docs.map((doc, index) => {
+    const order = doc.data();
+    loadedOrdersCache[doc.id] = order;
+
+    const date = order.createdAt ? order.createdAt.toDate().toLocaleString('th-TH') : '-';
+    const items = Array.isArray(order.items) ? order.items : [];
+    const deliveries = Array.isArray(order.deliveries) ? order.deliveries : [];
+    const itemsText = items.map(i => {
+      const delivered = deliveries.filter(d => d.itemId === i.itemId).reduce((s, d) => s + d.qty, 0);
+      const deliverInfo = delivered > 0
+        ? ` <span style="color:${delivered >= i.qty ? '#4caf50' : '#ff9800'};font-size:12px;">(ส่งแล้ว ${delivered}/${i.qty})</span>`
+        : '';
+      return `${escapeHtml(i.name)} x${i.qty}${deliverInfo}`;
+    }).join('<br>');
+    const status = order.status || 'pending';
+    const isNew = newIds.has(doc.id);
+    const orderNum = total - index;
+    const docId = escapeHtml(doc.id);
+    const fbEscaped = escapeHtml(order.facebook);
+
+    return `
+      <div class="admin-order-card ${isNew ? 'order-new' : ''}" data-order-id="${docId}">
+        ${isOwner ? `<button class="btn-delete-order" data-action="deleteOrder" data-id="${docId}" title="ลบ order">&times;</button>` : ''}
+        ${isNew ? '<span class="new-badge">ใหม่</span>' : ''}
+        <div class="admin-order-header">
+          <span style="font-weight:600;color:#e0b0ff;">#${orderNum}</span>
+          <span style="font-weight:600;">FB: ${fbEscaped}</span>
+          <span style="font-size:13px;color:#aaa;">${date}</span>
+        </div>
+        <div class="admin-order-info">
+          <div>ตัวละคร: <strong>${escapeHtml(order.characterName)}</strong></div>
+          ${order.couponCode ? `<div style="color:#ffeb3b; font-size:13px; margin-top:3px;">🎟️ คูปอง: ${escapeHtml(order.couponCode)} (-${formatPrice(order.discountAmount)} บาท)</div>` : ''}
+          <div style="margin-top:8px;">${itemsText}</div>
+          <div style="color:#ff69b4;font-weight:600;margin-top:8px;">
+            รวม ${formatPrice(order.totalPrice)} บาท
+            ${order.originalPrice && order.originalPrice !== order.totalPrice ? `<span style="text-decoration:line-through;color:#aaa;font-size:12px;margin-left:5px;">${formatPrice(order.originalPrice)}</span>` : ''}
+          </div>
+          <div style="margin-top:8px;">
+            ${(order.slipImage || order.hasSlip) ? `<button class="btn-table secondary" data-action="viewSlip" data-id="${docId}">ดูสลิปโอนเงิน</button>` : '<span style="color:#ff4444; font-size:12px;">ไม่มีสลิปโอนเงิน</span>'}
+          </div>
+        </div>
+        <div class="admin-order-actions">
+          <span class="order-status-badge ${status}">${status === 'pending' ? 'รอดำเนินการ' : status === 'completed' ? 'เสร็จแล้ว' : 'ยกเลิก'}</span>
+          ${status === 'pending' ? `<button class="btn-order-action btn-order-complete" data-action="deliver" data-id="${docId}">&#128666; ส่งของ</button>` : ''}
+          ${status === 'pending' ? `<button class="btn-order-action btn-order-cancel" data-action="cancel" data-id="${docId}">&#10005; ยกเลิก</button>` : ''}
+          <button class="btn-order-action btn-order-ban" data-action="ban" data-fb="${fbEscaped}">BAN</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (typeof updateRevenueSummary === 'function') updateRevenueSummary(snapshot.docs);
+  if (typeof renderOfflineQueue === 'function') renderOfflineQueue();
 }
 
 // ============ BLOCK FACEBOOK (BAN) ============

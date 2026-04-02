@@ -7,7 +7,28 @@ function loadProducts() {
 
   const tbody = document.getElementById('productTableBody');
 
-  unsubProducts = db.collection('items').onSnapshot(snapshot => {
+  const itemsQuery = db.collection('items');
+
+  if (_quotaSaving) {
+    itemsQuery.get().then(snapshot => processProductSnapshot(snapshot)).catch(e => {
+      console.error(e);
+      if (typeof handleQuotaError === 'function') handleQuotaError(e, 'loadProducts');
+    });
+    return;
+  }
+
+  unsubProducts = itemsQuery.onSnapshot(snapshot => {
+    processProductSnapshot(snapshot);
+  }, (e) => {
+    console.error(e);
+    if (typeof handleQuotaError === 'function') handleQuotaError(e, 'loadProducts');
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#ff6b6b;">โหลดสินค้าไม่ได้</td></tr>';
+  });
+}
+
+function processProductSnapshot(snapshot) {
+  const tbody = document.getElementById('productTableBody');
+  {
     if (snapshot.empty) {
       allProducts = [];
       tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#aaa;">ยังไม่มีสินค้า</td></tr>';
@@ -42,11 +63,7 @@ function loadProducts() {
     Object.keys(stockAccum).forEach(id => {
       if (stockAccum[id].total !== 0) showStockAccumBadge(id, stockAccum[id].total);
     });
-  }, (e) => {
-    console.error(e);
-    if (typeof handleQuotaError === 'function') handleQuotaError(e, 'loadProducts');
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#ff6b6b;">โหลดสินค้าไม่ได้</td></tr>';
-  });
+  }
 }
 
 // ============ HELPER: อ่าน adminStock รองรับทั้ง flat key และ nested path ============

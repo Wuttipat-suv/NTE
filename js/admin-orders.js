@@ -149,7 +149,14 @@ async function confirmDeliver() {
     closeDeliverModal();
     showToast('บันทึกการส่งของแล้ว');
   } catch (e) {
-    if (!handleQuotaError(e, 'deliver')) {
+    if (isQuotaError(e)) {
+      // Quota หมด → บันทึก offline แทน
+      const orderId = currentDeliverOrderId;
+      const adminName = currentAdminName || 'admin';
+      saveOfflineDelivery(orderId, order, deliverItems, adminName);
+      closeDeliverModal();
+      enterQuotaSavingMode();
+    } else {
       showAlert('บันทึกไม่ได้: ' + e.message, 'ผิดพลาด');
     }
   } finally {

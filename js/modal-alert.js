@@ -134,8 +134,9 @@ function showOrderToast(items, duration) {
   }
 }
 
-// ============ QUOTA EXCEEDED DETECTION ============
+// ============ QUOTA SAVING MODE ============
 let _quotaBannerShown = false;
+let _quotaSaving = false; // true = ปิด listener ใช้ .get() แทน
 
 function isQuotaError(err) {
   if (!err) return false;
@@ -153,24 +154,184 @@ function showQuotaBanner() {
     banner.id = 'quotaBanner';
     banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#ff1744;color:#fff;padding:12px 16px;text-align:center;font-size:14px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);';
     banner.innerHTML = `
-      ⚠️ Firestore quota หมดแล้ววันนี้ — บางฟีเจอร์อาจใช้ไม่ได้ชั่วคราว<br>
-      <span style="font-size:12px;font-weight:400;">แก้ถาวร: อัพเกรดเป็น Blaze plan (ฟรีเท่าเดิม จ่ายเฉพาะส่วนเกิน) →
+      ⚠️ Quota saving mode — ปิด real-time อัตโนมัติเพื่อประหยัด quota<br>
+      <span style="font-size:12px;font-weight:400;">
+        <button onclick="if(typeof manualRefresh==='function')manualRefresh();" style="background:#fff;color:#ff1744;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-weight:600;margin:0 6px;">🔄 Refresh ข้อมูล</button>
+        แก้ถาวร: อัพเกรดเป็น Blaze plan →
         <a href="https://console.firebase.google.com" target="_blank" style="color:#fff;text-decoration:underline;">Firebase Console</a>
       </span>
-      <button onclick="this.parentElement.remove();window._quotaBannerShown=false;" style="position:absolute;right:10px;top:8px;background:none;border:none;color:#fff;font-size:18px;cursor:pointer;">&times;</button>
+      <button onclick="this.parentElement.remove();_quotaBannerShown=false;" style="position:absolute;right:10px;top:8px;background:none;border:none;color:#fff;font-size:18px;cursor:pointer;">&times;</button>
     `;
     document.body.prepend(banner);
   }
 }
 
+// ปิด listener ทั้งหมดเพื่อประหยัด quota
+function enterQuotaSavingMode() {
+  if (_quotaSaving) return;
+  _quotaSaving = true;
+  console.warn('[QUOTA] Entering saving mode — all listeners stopped');
+
+  // ปิด listener ฝั่ง customer
+  if (typeof window !== 'undefined') {
+    if (window.unsubItems) { window.unsubItems(); window.unsubItems = null; }
+    if (window.unsubStats) { window.unsubStats(); window.unsubStats = null; }
+    if (window.unsubReservations) { window.unsubReservations(); window.unsubReservations = null; }
+    if (typeof _stopHeartbeat === 'function') _stopHeartbeat();
+  }
+  // ปิด listener ฝั่ง admin
+  if (typeof unsubOrders !== 'undefined' && unsubOrders) { unsubOrders(); unsubOrders = null; }
+  if (typeof unsubProducts !== 'undefined' && unsubProducts) { unsubProducts(); unsubProducts = null; }
+  if (typeof unsubCoupons !== 'undefined' && unsubCoupons) { unsubCoupons(); unsubCoupons = null; }
+  if (typeof unsubBans !== 'undefined' && unsubBans) { unsubBans(); unsubBans = null; }
+  if (typeof unsubAdmins !== 'undefined' && unsubAdmins) { unsubAdmins(); unsubAdmins = null; }
+  if (typeof unsubPendingAdmins !== 'undefined' && unsubPendingAdmins) { unsubPendingAdmins(); unsubPendingAdmins = null; }
+
+  showQuotaBanner();
+}
+
 function handleQuotaError(err, context) {
   if (isQuotaError(err)) {
-    showQuotaBanner();
+    enterQuotaSavingMode();
     showAlert(
-      'Firestore quota หมดแล้ววันนี้ กรุณารอพรุ่งนี้ หรืออัพเกรดเป็น Blaze plan ที่ Firebase Console',
-      '⚠️ Quota หมด'
+      'Quota ใกล้หมด — ระบบเปลี่ยนเป็นโหมดประหยัดอัตโนมัติ\nกดปุ่ม Refresh เพื่อโหลดข้อมูลใหม่\n\nแก้ถาวร: อัพเกรด Blaze plan ที่ Firebase Console',
+      '⚠️ Quota Saving Mode'
     );
     return true;
   }
   return false;
+}
+
+// ============ OFFLINE DELIVERY QUEUE ============
+const OFFLINE_QUEUE_KEY = 'offlineDeliverQueue';
+
+function getOfflineQueue() {
+  try { return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function saveOfflineDelivery(orderId, order, deliverItems, adminName) {
+  const queue = getOfflineQueue();
+  queue.push({
+    orderId,
+    facebook: order.facebook,
+    characterName: order.characterName,
+    deliverItems,
+    adminName,
+    savedAt: Date.now()
+  });
+  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+  showToast('บันทึกการส่งของไว้ offline — จะ sync เมื่อ quota กลับมา');
+  renderOfflineQueue();
+}
+
+function removeOfflineEntry(index) {
+  const queue = getOfflineQueue();
+  queue.splice(index, 1);
+  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+  renderOfflineQueue();
+}
+
+function renderOfflineQueue() {
+  const container = document.getElementById('offlineQueueContainer');
+  if (!container) return;
+  const queue = getOfflineQueue();
+  if (queue.length === 0) {
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+
+  container.style.display = 'block';
+  container.innerHTML = `
+    <div style="background:#1a1a2e;border:2px solid #ff9800;border-radius:8px;padding:12px;margin-bottom:16px;">
+      <div style="color:#ff9800;font-weight:600;margin-bottom:8px;">📋 รอ Sync (${queue.length} รายการ) <button class="btn-primary" style="width:auto;padding:4px 12px;font-size:12px;float:right;" onclick="syncOfflineQueue()">🔄 Sync ทั้งหมด</button></div>
+      ${queue.map((q, i) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid #333;font-size:13px;">
+          <span>FB: ${escapeHtml(q.facebook)} | ${escapeHtml(q.characterName)} | ส่งโดย: ${escapeHtml(q.adminName)} | ${q.deliverItems.map(d => escapeHtml(d.name) + ' x' + d.qty).join(', ')}</span>
+          <button onclick="removeOfflineEntry(${i})" style="background:none;border:none;color:#ff4444;cursor:pointer;font-size:16px;">&times;</button>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+async function syncOfflineQueue() {
+  const queue = getOfflineQueue();
+  if (queue.length === 0) { showToast('ไม่มีรายการรอ sync'); return; }
+
+  let success = 0, fail = 0;
+  const remaining = [];
+
+  for (const entry of queue) {
+    try {
+      await db.runTransaction(async (transaction) => {
+        const orderRef = db.collection('orders').doc(entry.orderId);
+        const orderDoc = await transaction.get(orderRef);
+        if (!orderDoc.exists) throw new Error('ไม่พบ order');
+
+        const orderData = orderDoc.data();
+        if (orderData.status === 'cancelled') throw new Error('order ถูกยกเลิกแล้ว');
+
+        const orderItems = Array.isArray(orderData.items) ? orderData.items : [];
+        const existingDeliveries = Array.isArray(orderData.deliveries) ? orderData.deliveries : [];
+        const newDeliveries = [];
+
+        for (const di of entry.deliverItems) {
+          const totalDelivered = existingDeliveries
+            .filter(d => d.itemId === di.itemId)
+            .reduce((sum, d) => sum + d.qty, 0);
+          const orderItem = orderItems.find(i => i.itemId === di.itemId);
+          const remaining = orderItem ? orderItem.qty - totalDelivered : 0;
+          if (di.qty > remaining) throw new Error(`${di.name} ส่งเกินจำนวน`);
+
+          newDeliveries.push({ itemId: di.itemId, qty: di.qty, by: entry.adminName, at: new Date() });
+
+          transaction.set(
+            db.collection('items').doc(di.itemId).collection('stockHistory').doc(),
+            { qty: -di.qty, addedBy: entry.adminName, note: 'ขาย (offline sync)', createdAt: firebase.firestore.FieldValue.serverTimestamp() }
+          );
+          transaction.set(db.collection('items').doc(di.itemId), {
+            adminStock: { [entry.adminName]: firebase.firestore.FieldValue.increment(-di.qty) }
+          }, { merge: true });
+        }
+
+        const allDeliveries = [...existingDeliveries, ...newDeliveries];
+        const fullyDelivered = orderItems.every(item => {
+          const totalDel = allDeliveries.filter(d => d.itemId === item.itemId).reduce((sum, d) => sum + d.qty, 0);
+          return totalDel >= item.qty;
+        });
+
+        const updateData = { deliveries: allDeliveries };
+        if (fullyDelivered) {
+          updateData.status = 'completed';
+          const orderTotal = Number(orderData.totalPrice) || 0;
+          transaction.set(db.collection('stats').doc('sales'), {
+            completedCount: firebase.firestore.FieldValue.increment(1),
+            totalRevenue: firebase.firestore.FieldValue.increment(orderTotal)
+          }, { merge: true });
+        }
+        transaction.update(orderRef, updateData);
+      });
+      success++;
+    } catch (e) {
+      if (isQuotaError(e)) {
+        remaining.push(entry);
+        fail++;
+      } else {
+        console.error('Sync failed for', entry.orderId, e.message);
+        fail++;
+      }
+    }
+  }
+
+  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remaining));
+  renderOfflineQueue();
+
+  if (fail === 0) {
+    showAlert(`Sync สำเร็จทั้งหมด ${success} รายการ!`, '✅ Sync เสร็จ');
+    _quotaSaving = false;
+  } else {
+    showAlert(`Sync ได้ ${success} รายการ, ไม่สำเร็จ ${fail} รายการ${remaining.length > 0 ? ' (quota ยังหมด)' : ''}`, 'ผลการ Sync');
+  }
 }

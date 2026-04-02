@@ -58,77 +58,19 @@ function loadItems() {
   grid.innerHTML =
     '<p style="grid-column:1/-1;text-align:center;color:#aaa;">กำลังโหลดสินค้า...</p>';
 
-  window.unsubItems = db
-    .collection("items")
-    .orderBy("createdAt", "asc")
-    .onSnapshot(
-      (snapshot) => {
-        const prevItems = items;
-        items = snapshot.docs
-          .map((doc) => ({ id: doc.id, ...doc.data() }))
-          .filter((item) => item.active !== false); // ซ่อนสินค้าที่ admin ปิดไว้
-        items.sort((a, b) => {
-          const aAvail =
-            typeof getAvailableStock === "function"
-              ? getAvailableStock(a)
-              : Number(a.stock) || 0;
-          const bAvail =
-            typeof getAvailableStock === "function"
-              ? getAvailableStock(b)
-              : Number(b.stock) || 0;
-          const aOut = aAvail <= 0 ? 1 : 0;
-          const bOut = bAvail <= 0 ? 1 : 0;
-          if (aOut !== bOut) return aOut - bOut;
-          return (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity);
-        });
+  const itemsQuery = db.collection("items").orderBy("createdAt", "asc");
 
-        // ตรวจจับ stock ลดลง (มีคนซื้อไป) — toast แจ้งเตือน
-        // ข้าม toast ถ้า admin เป็นคนลด stock (_adminAdjust เปลี่ยน)
-        if (prevItems.length > 0) {
-          const changed = [];
-          for (const newItem of items) {
-            const old = prevItems.find((i) => i.id === newItem.id);
-            if (old && newItem.stock < old.stock) {
-              const oldAdj = old._adminAdjust ? old._adminAdjust.seconds : 0;
-              const newAdj = newItem._adminAdjust
-                ? newItem._adminAdjust.seconds
-                : 0;
-              if (newAdj !== oldAdj) continue; // admin ลดเอง ไม่ toast
-              changed.push({
-                name: newItem.name,
-                qty: old.stock - newItem.stock,
-                image: newItem.image,
-              });
-            }
-          }
-          if (changed.length > 0) {
-            const entry = { changed, time: Date.now() };
-            saveToastToStorage(entry);
-            showChangedToast(changed);
-          }
-        }
+  // Quota saving mode → ใช้ .get() ครั้งเดียว
+  if (_quotaSaving) {
+    itemsQuery.get().then(snapshot => processItemsSnapshot(snapshot)).catch(e => {
+      console.error("โหลดสินค้าไม่ได้:", e);
+      if (typeof handleQuotaError === 'function') handleQuotaError(e, 'loadItems');
+    });
+    return;
+  }
 
-        renderItems();
-
-        // อัพเดท stock/price ในตะกร้า (ไม่เปลี่ยนจำนวนที่สั่ง)
-        for (const [id, entry] of Object.entries(cart)) {
-          const fresh = items.find((i) => i.id === id);
-          if (fresh) {
-            entry.item.stock = fresh.stock;
-            entry.item.price = fresh.price;
-            entry.item.promoPrice = fresh.promoPrice ?? null;
-            entry.item.promoExpiresAt = fresh.promoExpiresAt ?? null;
-          }
-        }
-        renderCart();
-
-        // ถ้า summary modal เปิดอยู่ ให้ re-render ด้วย
-        if (
-          document.getElementById("summaryModal").classList.contains("active")
-        ) {
-          refreshSummary();
-        }
-      },
+  window.unsubItems = itemsQuery.onSnapshot(
+      (snapshot) => processItemsSnapshot(snapshot),
       (e) => {
         console.error("โหลดสินค้าไม่ได้:", e);
         if (typeof handleQuotaError === 'function') handleQuotaError(e, 'loadItems');
@@ -138,8 +80,77 @@ function loadItems() {
     );
 }
 
+function processItemsSnapshot(snapshot) {
+  const prevItems = items;
+  items = snapshot.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .filter((item) => item.active !== false);
+  items.sort((a, b) => {
+    const aAvail = typeof getAvailableStock === "function" ? getAvailableStock(a) : Number(a.stock) || 0;
+    const bAvail = typeof getAvailableStock === "function" ? getAvailableStock(b) : Number(b.stock) || 0;
+    const aOut = aAvail <= 0 ? 1 : 0;
+    const bOut = bAvail <= 0 ? 1 : 0;
+    if (aOut !== bOut) return aOut - bOut;
+    return (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity);
+  });
+
+  if (prevItems.length > 0) {
+    const changed = [];
+    for (const newItem of items) {
+      const old = prevItems.find((i) => i.id === newItem.id);
+      if (old && newItem.stock < old.stock) {
+        const oldAdj = old._adminAdjust ? old._adminAdjust.seconds : 0;
+        const newAdj = newItem._adminAdjust ? newItem._adminAdjust.seconds : 0;
+        if (newAdj !== oldAdj) continue;
+        changed.push({ name: newItem.name, qty: old.stock - newItem.stock, image: newItem.image });
+      }
+    }
+    if (changed.length > 0) {
+      const entry = { changed, time: Date.now() };
+      saveToastToStorage(entry);
+      showChangedToast(changed);
+    }
+  }
+
+  renderItems();
+
+  for (const [id, entry] of Object.entries(cart)) {
+    const fresh = items.find((i) => i.id === id);
+    if (fresh) {
+      entry.item.stock = fresh.stock;
+      entry.item.price = fresh.price;
+      entry.item.promoPrice = fresh.promoPrice ?? null;
+      entry.item.promoExpiresAt = fresh.promoExpiresAt ?? null;
+    }
+  }
+  renderCart();
+
+  if (document.getElementById("summaryModal").classList.contains("active")) {
+    refreshSummary();
+  }
+}
+
+// Manual refresh สำหรับ quota saving mode
+function manualRefresh() {
+  showToast('กำลังโหลดข้อมูลใหม่...');
+  loadItems();
+  if (typeof loadStats === 'function') loadStats();
+  // admin functions
+  if (typeof loadOrders === 'function') loadOrders();
+  if (typeof loadProducts === 'function') loadProducts();
+}
+
 // ============ LOAD STATS ============
 function loadStats() {
+  if (_quotaSaving) {
+    db.collection("stats").doc("sales").get().then(doc => {
+      if (doc.exists) {
+        const el = document.getElementById("completedOrderCount");
+        if (el) el.textContent = (doc.data().completedCount || 0).toLocaleString();
+      }
+    }).catch(() => {});
+    return;
+  }
   window.unsubStats = db
     .collection("stats")
     .doc("sales")
