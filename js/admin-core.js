@@ -260,7 +260,7 @@ function clearFieldErrors() {
 function setupEscapeKey() {
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    const modals = ['addProductModal', 'addStockModal', 'stockHistoryModal', 'editProductModal', 'addCouponModal', 'shopStateModal', 'closeReasonModal', 'slipModal', 'editDisplayNameModal', 'alertModal'];
+    const modals = ['addProductModal', 'addStockModal', 'stockHistoryModal', 'editProductModal', 'addCouponModal', 'shopStateModal', 'closeReasonModal', 'slipModal', 'editDisplayNameModal', 'cancelReasonModal', 'alertModal'];
     for (const id of modals) {
       const el = document.getElementById(id);
       if (el && el.classList.contains('active')) {
@@ -414,9 +414,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!btn) return;
     const { action, id, name, price, image } = btn.dataset;
     if (action === 'addStock') {
-      currentAdminName ? quickStockAdjust(id, name, 1) : openAddStockModal(id, name, 'add');
+      const bq = (allProducts.find(p => p.id === id) || {}).bundleQty || 1;
+      currentAdminName ? quickStockAdjust(id, name, bq) : openAddStockModal(id, name, 'add');
     } else if (action === 'reduceStock') {
-      currentAdminName ? quickStockAdjust(id, name, -1) : openAddStockModal(id, name, 'reduce');
+      const bq = (allProducts.find(p => p.id === id) || {}).bundleQty || 1;
+      currentAdminName ? quickStockAdjust(id, name, -bq) : openAddStockModal(id, name, 'reduce');
     } else if (action === 'stockHistory') openStockHistory(id, name);
     else if (action === 'toggleActive') toggleItemActive(id, btn.dataset.active === 'true');
     else if (action === 'edit') openEditProductModal(id, name, Number(price), image);

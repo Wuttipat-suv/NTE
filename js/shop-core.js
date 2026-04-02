@@ -151,6 +151,14 @@ function loadStats() {
     });
 }
 
+// ============ BUNDLE HELPER ============
+function getBundleQty(item) {
+  return Number(item.bundleQty) || 1;
+}
+function getBundleCount(stock, bundleQty) {
+  return Math.floor(stock / bundleQty);
+}
+
 // ============ RENDER ITEMS ============
 function renderItems() {
   const grid = document.getElementById("itemGrid");
@@ -175,20 +183,24 @@ function renderItems() {
           : Number(item.stock) || 0;
       const reserved =
         typeof getReservedQty === "function" ? getReservedQty(item.id) : 0;
-      const outOfStock = available <= 0;
+      const bq = getBundleQty(item);
+      const bundleCount = getBundleCount(available, bq);
+      const outOfStock = bundleCount <= 0;
+      const priceUnit = bq > 1 ? 'ชุดละ' : 'ชิ้นละ';
+      const unitPrice = getPrice(item) * bq;
       return `
       <div class="item-card ${outOfStock ? "out-of-stock" : ""}"
            data-id="${item.id}">
-        <div class="stock-badge">x${available}</div>
+        <div class="stock-badge">${bq > 1 ? `${bundleCount} ชุด` : `x${available}`}</div>
         ${reserved > 0 ? `<div class="reserved-badge">${reserved} จอง</div>` : ""}
         <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><rect fill=%22%23333%22 width=%22100%22 height=%22100%22/><text fill=%22%23999%22 x=%2250%22 y=%2255%22 text-anchor=%22middle%22 font-size=%2212%22>No Image</text></svg>'">
-        <div class="item-name">${escapeHtml(item.name)}</div>
+        <div class="item-name">${escapeHtml(item.name)}${bq > 1 ? ` <span style="color:#ff9800;font-size:12px;">(ชุดละ ${bq} ชิ้น)</span>` : ''}</div>
         <div class="item-price">
           ${
             isPromoValid(item)
               ? `<div class="promo-countdown" data-expires="${item.promoExpiresAt ? item.promoExpiresAt.toMillis() : ""}"></div>
-               <span class="original-price">ชิ้นละ ${formatPrice(item.price)} บาท</span> <span class="promo-price">ชิ้นละ ${formatPrice(item.promoPrice)} บาท</span>`
-              : `ชิ้นละ ${formatPrice(item.price)} บาท`
+               <span class="original-price">${priceUnit} ${formatPrice(item.price * bq)} บาท</span> <span class="promo-price">${priceUnit} ${formatPrice(item.promoPrice * bq)} บาท</span>`
+              : `${priceUnit} ${formatPrice(unitPrice)} บาท`
           }
         </div>
       </div>
@@ -214,8 +226,12 @@ function setupTabs() {
       document
         .getElementById("historySection")
         .classList.toggle("active", target === "history");
+      document.getElementById("feedSection").style.display =
+        target === "feed" ? "block" : "none";
       document.getElementById("rightColumn").style.display =
         target === "shop" ? "" : "none";
+
+      if (target === "feed" && typeof loadFeed === "function") loadFeed();
     });
   });
 }
@@ -309,15 +325,17 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!currentItem) return;
     if (currentQty > 1) {
       currentQty--;
+      const bq = getBundleQty(currentItem);
       const inCart = cart[currentItem.id] ? cart[currentItem.id].qty : 0;
-      updateQtyDisplay(currentItem.stock - inCart);
+      updateQtyDisplay(getBundleCount(currentItem.stock - inCart * bq, bq));
     }
   });
 
   document.getElementById("qtyPlus").addEventListener("click", () => {
     if (!currentItem) return;
+    const bq = getBundleQty(currentItem);
     const inCart = cart[currentItem.id] ? cart[currentItem.id].qty : 0;
-    const maxQty = currentItem.stock - inCart;
+    const maxQty = getBundleCount(currentItem.stock - inCart * bq, bq);
     if (currentQty < maxQty) {
       currentQty++;
       updateQtyDisplay(maxQty);
@@ -326,8 +344,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("qtyDisplay").addEventListener("input", () => {
     if (!currentItem) return;
+    const bq = getBundleQty(currentItem);
     const inCart = cart[currentItem.id] ? cart[currentItem.id].qty : 0;
-    const maxQty = currentItem.stock - inCart;
+    const maxQty = getBundleCount(currentItem.stock - inCart * bq, bq);
     let val = parseInt(document.getElementById("qtyDisplay").value) || 1;
     if (val < 1) val = 1;
     if (val > maxQty) val = maxQty;
@@ -428,7 +447,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       let rawTotal = 0;
       Object.values(cart).forEach(({ item, qty }) => {
-        rawTotal += getPrice(item) * qty;
+        const bq = getBundleQty(item);
+        rawTotal += getPrice(item) * qty * bq;
       });
 
       errEl.textContent = "กำลังตรวจสอบโค้ด...";
@@ -508,7 +528,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let rawTotal = 0;
     Object.values(cart).forEach(({ item, qty }) => {
-      rawTotal += getPrice(item) * qty;
+      const bq = getBundleQty(item);
+      rawTotal += getPrice(item) * qty * bq;
     });
     document.getElementById("summaryTotalPrice").textContent =
       `${formatPrice(rawTotal)} บาท`;
@@ -541,6 +562,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const btn = e.target.closest(".btn-cancel-order");
     if (btn) cancelOrder(btn.dataset.orderId);
   });
+
+  // Go to feed tab from stats banner
+  document.getElementById("goToFeedLink").addEventListener("click", () => {
+    document.querySelector('.nav-tab[data-tab="feed"]').click();
+  });
+
+  // Feed load more
+  const loadMoreFeedBtn = document.getElementById("loadMoreFeedBtn");
+  if (loadMoreFeedBtn) {
+    loadMoreFeedBtn.addEventListener("click", () => loadFeed(true));
+  }
 
   // Item grid click delegation (แทน inline onclick)
   document.getElementById("itemGrid").addEventListener("click", (e) => {

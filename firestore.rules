@@ -73,6 +73,13 @@ service cloud.firestore {
                         && request.resource.data.totalPrice == resource.data.totalPrice);
 
       allow delete: if isAdmin();
+
+      // Slip attachments (แยกเก็บเพื่อลดขนาด order doc)
+      match /attachments/{attachId} {
+        allow read: if isAdmin();
+        allow create: if request.resource.data.image is string
+                      && request.resource.data.image.size() < 300000;
+      }
     }
 
     // ============ STATS ============

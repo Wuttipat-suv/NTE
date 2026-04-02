@@ -117,9 +117,9 @@ async function confirmDeliver() {
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
           }
         );
-        transaction.update(db.collection('items').doc(di.itemId), {
-          [`adminStock.${adminName}`]: firebase.firestore.FieldValue.increment(-di.qty)
-        });
+        transaction.set(db.collection('items').doc(di.itemId), {
+          adminStock: { [adminName]: firebase.firestore.FieldValue.increment(-di.qty) }
+        }, { merge: true });
       }
 
       const allDeliveries = [...existingDeliveries, ...newDeliveries];
@@ -170,8 +170,48 @@ async function deleteOrder(orderId) {
   }
 }
 
+// ============ CANCEL REASON MODAL ============
+function askCancelReason() {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('cancelReasonModal');
+    const input = document.getElementById('cancelReasonInput');
+    const errorEl = document.getElementById('cancelReasonError');
+    input.value = '';
+    errorEl.textContent = '';
+    modal.classList.add('active');
+    setTimeout(() => input.focus(), 100);
+
+    function onConfirm() {
+      const val = input.value.trim();
+      if (!val) { errorEl.textContent = 'กรุณาระบุเหตุผล'; return; }
+      cleanup(); resolve(val);
+    }
+    function onCancel() { cleanup(); resolve(null); }
+    function onKey(e) {
+      if (e.key === 'Enter') onConfirm();
+      if (e.key === 'Escape') onCancel();
+    }
+
+    const confirmBtn = document.getElementById('cancelReasonConfirmBtn');
+    const cancelBtn = document.getElementById('cancelReasonCancelBtn');
+    confirmBtn.addEventListener('click', onConfirm);
+    cancelBtn.addEventListener('click', onCancel);
+    input.addEventListener('keydown', onKey);
+
+    function cleanup() {
+      modal.classList.remove('active');
+      confirmBtn.removeEventListener('click', onConfirm);
+      cancelBtn.removeEventListener('click', onCancel);
+      input.removeEventListener('keydown', onKey);
+    }
+  });
+}
+
 // ============ CANCEL ORDER (Transaction) ============
 async function cancelOrder(orderId) {
+  const reason = await askCancelReason();
+  if (!reason) return;
+
   try {
     await db.runTransaction(async (transaction) => {
       const orderRef = db.collection('orders').doc(orderId);
@@ -205,9 +245,9 @@ async function cancelOrder(orderId) {
       // ย้อน delivery ที่เคยส่งไป → คืน adminStock + stockHistory
       for (const del of deliveries) {
         if (del.itemId && del.by) {
-          transaction.update(db.collection('items').doc(del.itemId), {
-            [`adminStock.${del.by}`]: firebase.firestore.FieldValue.increment(del.qty)
-          });
+          transaction.set(db.collection('items').doc(del.itemId), {
+            adminStock: { [del.by]: firebase.firestore.FieldValue.increment(del.qty) }
+          }, { merge: true });
         }
         transaction.set(
           db.collection('items').doc(del.itemId).collection('stockHistory').doc(),
@@ -228,7 +268,12 @@ async function cancelOrder(orderId) {
         });
       }
 
-      transaction.update(orderRef, { status: 'cancelled' });
+      transaction.update(orderRef, {
+        status: 'cancelled',
+        cancelReason: reason,
+        cancelledBy: currentAdminName || 'admin',
+        cancelledAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
     });
 
     showToast('ยกเลิก order + คืน stock + คืนคูปองแล้ว');
@@ -317,8 +362,8 @@ function updateRevenueSummary(orderDocs) {
     });
   });
 
-  // หัก com 3% จากแอดมินที่ไม่ใช่ owner
-  const COM_RATE = 0.03;
+  // หัก com 5% จากแอดมินที่ไม่ใช่ owner
+  const COM_RATE = 0.05;
   const adminRevenueNet = {};
   const adminComAmount = {};
   for (const [name, rev] of Object.entries(adminRevenue)) {
@@ -354,7 +399,7 @@ function updateRevenueSummary(orderDocs) {
             <button class="btn-secondary" style="padding:4px 10px;font-size:11px;width:auto;color:#ff9800;border-color:#ff9800;" onclick="resetRevenueSummary()">รีเซ็ต</button>
           </span>
         </div>
-        ${totalCom > 0 ? `<div style="text-align:right;font-size:12px;color:#4CAF50;margin:-4px 0 8px;">รายได้ค่า com 3%: +${formatPrice(Math.round(totalCom))} ฿</div>` : ''}
+        ${totalCom > 0 ? `<div style="text-align:right;font-size:12px;color:#4CAF50;margin:-4px 0 8px;">รายได้ค่า com 5%: +${formatPrice(Math.round(totalCom))} ฿</div>` : ''}
         ${sorted.length > 0 ? `<div class="revenue-cards">
           ${sorted.map(([name, netRev], i) => {
             const grossRev = adminRevenue[name] || 0;

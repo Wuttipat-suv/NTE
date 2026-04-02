@@ -11,14 +11,17 @@ function openSummaryModal() {
   const summaryList = document.getElementById("summaryList");
   summaryList.innerHTML = entries
     .map(([id, { item, qty }]) => {
-      const subtotal = getPrice(item) * qty;
+      const bq = getBundleQty(item);
+      const subtotal = getPrice(item) * qty * bq;
       total += subtotal;
-      const stockWarn = qty > item.stock ? 'summary-item-out' : item.stock <= 5 ? 'summary-item-low' : '';
+      const maxBundles = getBundleCount(item.stock, bq);
+      const stockWarn = qty > maxBundles ? 'summary-item-out' : maxBundles <= 5 ? 'summary-item-low' : '';
+      const qtyLabel = bq > 1 ? `${qty} ชุด (${qty * bq} ชิ้น)` : `x${qty}`;
       return `
       <div class="summary-item ${stockWarn}">
-        <span>${escapeHtml(item.name)} x${qty}</span>
+        <span>${escapeHtml(item.name)} ${qtyLabel}</span>
         <span class="summary-item-right">
-          <span class="summary-item-stock">เหลือ ${item.stock}</span>
+          <span class="summary-item-stock">เหลือ ${bq > 1 ? maxBundles + ' ชุด' : item.stock}</span>
           <span>${formatPrice(subtotal)} บาท</span>
         </span>
       </div>
@@ -58,14 +61,17 @@ function refreshSummary() {
   const summaryList = document.getElementById("summaryList");
   summaryList.innerHTML = entries
     .map(([id, { item, qty }]) => {
-      const subtotal = getPrice(item) * qty;
+      const bq = getBundleQty(item);
+      const subtotal = getPrice(item) * qty * bq;
       total += subtotal;
-      const stockWarn = qty > item.stock ? 'summary-item-out' : item.stock <= 5 ? 'summary-item-low' : '';
+      const maxBundles = getBundleCount(item.stock, bq);
+      const stockWarn = qty > maxBundles ? 'summary-item-out' : maxBundles <= 5 ? 'summary-item-low' : '';
+      const qtyLabel = bq > 1 ? `${qty} ชุด (${qty * bq} ชิ้น)` : `x${qty}`;
       return `
       <div class="summary-item ${stockWarn}">
-        <span>${escapeHtml(item.name)} x${qty}</span>
+        <span>${escapeHtml(item.name)} ${qtyLabel}</span>
         <span class="summary-item-right">
-          <span class="summary-item-stock">เหลือ ${item.stock}</span>
+          <span class="summary-item-stock">เหลือ ${bq > 1 ? maxBundles + ' ชุด' : item.stock}</span>
           <span>${formatPrice(subtotal)} บาท</span>
         </span>
       </div>
@@ -222,11 +228,16 @@ async function submitOrder() {
   }
 
   const entries = Object.entries(cart);
-  const cartItems = entries.map(([id, { item, qty }]) => ({
-    itemId: id,
-    name: item.name,
-    qty,
-  }));
+  const cartItems = entries.map(([id, { item, qty }]) => {
+    const bq = getBundleQty(item);
+    return {
+      itemId: id,
+      name: item.name,
+      qty: qty * bq, // แปลงชุดเป็นชิ้นจริง
+      bundles: qty,
+      bundleQty: bq,
+    };
+  });
 
   confirmBtn.textContent = "กำลังส่ง...";
 
@@ -315,7 +326,7 @@ async function submitOrder() {
          });
       }
 
-      // สร้าง order
+      // สร้าง order (ไม่เก็บ slip ใน order doc เพื่อลดขนาด document)
       const orderRef = db.collection("orders").doc();
       const orderData = {
         facebook: fb,
@@ -326,15 +337,23 @@ async function submitOrder() {
         discountAmount: discountAmount,
         status: "pending",
         _hp: "",
-        slipImage: slipImageBase64 || null,
+        hasSlip: !!slipImageBase64,
         paymentMode: customerPayMode === 'pay' ? 'paid' : 'unpaid',
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       };
       if (couponData) {
         orderData.couponCode = appliedCoupon.id;
       }
-      
+
       transaction.set(orderRef, orderData);
+
+      // เก็บ slip แยก subcollection เพื่อไม่ให้ order doc ใหญ่เกิน
+      if (slipImageBase64) {
+        transaction.set(orderRef.collection('attachments').doc('slip'), {
+          image: slipImageBase64,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
     });
 
     // บันทึก cooldown

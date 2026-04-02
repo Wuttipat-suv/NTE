@@ -34,6 +34,7 @@
         <div class="nav-tabs">
           <button class="nav-tab active" data-tab="shop">ร้านค้า</button>
           <button class="nav-tab" data-tab="history">ประวัติการสั่ง</button>
+          <button class="nav-tab" data-tab="feed">ประวัติร้าน</button>
         </div>
 
         <!-- SHOP HOURS INFO -->
@@ -78,29 +79,33 @@
 
         <!-- SHOP STATS BANNER -->
         <div
-          class="shop-stats-banner"
-          id="shopStatsBanner"
-          style="
-            text-align: center;
-            padding: 10px;
-            background: rgba(255, 105, 180, 0.1);
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border: 1px solid #ff69b4;
-          "
+          class="shop-stats-banner feed-link"
+          id="goToFeedLink"
+          role="button"
+          tabindex="0"
         >
           <strong style="color: #ff69b4">ยอดออเดอร์สำเร็จทั้งหมด:</strong>
-          <span
-            id="completedOrderCount"
-            style="font-weight: bold; font-size: 1.2em; color: #fff"
-            >0</span
-          >
+          <span id="completedOrderCount" style="font-weight: bold; font-size: 1.2em; color: #fff">0</span>
           รายการ
         </div>
 
         <!-- SHOP SECTION -->
         <div id="shopSection">
           <div class="item-grid" id="itemGrid"></div>
+        </div>
+
+        <!-- FEED SECTION (ประวัติร้าน) -->
+        <div class="history-section" id="feedSection" style="display:none;">
+          <div id="feedList"></div>
+          <div style="text-align: center; margin-top: 15px">
+            <button
+              class="btn-secondary"
+              id="loadMoreFeedBtn"
+              style="display: none; width: auto; padding: 8px 24px"
+            >
+              แสดงเพิ่มเติม
+            </button>
+          </div>
         </div>
 
         <!-- HISTORY SECTION -->
@@ -427,11 +432,11 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="js/firebase-config.js?v=5"></script>
     <script src="js/modal-alert.js?v=6"></script>
-    <script src="js/shop-core.js?v=4"></script>
-    <script src="js/shop-reservation.js?v=4"></script>
-    <script src="js/shop-cart.js?v=4"></script>
-    <script src="js/shop-checkout.js?v=4"></script>
-    <script src="js/shop-history.js?v=4"></script>
+    <script src="js/shop-core.js?v=5"></script>
+    <script src="js/shop-reservation.js?v=5"></script>
+    <script src="js/shop-cart.js?v=5"></script>
+    <script src="js/shop-checkout.js?v=5"></script>
+    <script src="js/shop-history.js?v=5"></script>
     <script src="js/no-devtools.js"></script>
   </body>
 </html>

@@ -4,26 +4,31 @@ function openItemModal(itemId) {
   if (!currentItem) return;
 
   const available = typeof getAvailableStock === 'function' ? getAvailableStock(currentItem) : (Number(currentItem.stock) || 0);
-  const inCart = cart[itemId] ? cart[itemId].qty : 0;
-  const canAdd = available - inCart;
+  const bq = getBundleQty(currentItem);
+  const inCartBundles = cart[itemId] ? cart[itemId].qty : 0;
+  const usedStock = inCartBundles * bq;
+  const canAddBundles = getBundleCount(available - usedStock, bq);
   const reserved = typeof getReservedQty === 'function' ? getReservedQty(itemId) : 0;
 
-  if (canAdd <= 0) {
+  if (canAddBundles <= 0) {
     showAlert(available <= 0 ? "สินค้าหมดแล้ว" : "สินค้านี้เลือกครบจำนวน stock แล้ว");
     return;
   }
 
   currentQty = 1;
+  const priceUnit = bq > 1 ? 'ชุดละ' : 'ชิ้นละ';
+  const unitPrice = bq;
   document.getElementById("modalItemImg").src = currentItem.image;
-  document.getElementById("modalItemName").textContent = currentItem.name;
+  document.getElementById("modalItemName").textContent = currentItem.name + (bq > 1 ? ` (ชุดละ ${bq} ชิ้น)` : '');
   document.getElementById("modalItemPriceUnit").innerHTML =
     isPromoValid(currentItem)
       ? `<div class="promo-countdown" data-expires="${currentItem.promoExpiresAt ? currentItem.promoExpiresAt.toMillis() : ''}"></div>
-         <span class="original-price">ชิ้นละ ${formatPrice(currentItem.price)} บาท</span> <span class="promo-price">ชิ้นละ ${formatPrice(currentItem.promoPrice)} บาท</span>`
-      : `ชิ้นละ ${formatPrice(currentItem.price)} บาท`;
+         <span class="original-price">${priceUnit} ${formatPrice(currentItem.price * bq)} บาท</span> <span class="promo-price">${priceUnit} ${formatPrice(currentItem.promoPrice * bq)} บาท</span>`
+      : `${priceUnit} ${formatPrice(getPrice(currentItem) * bq)} บาท`;
+  const stockLabel = bq > 1 ? `เหลือ ${canAddBundles} ชุด` : `เหลือ ${canAddBundles} ชิ้น`;
   document.getElementById("modalStockInfo").textContent =
-    `เหลือ ${canAdd} ชิ้น` + (reserved > 0 ? ` (${reserved} ถูกจองโดยคนอื่น)` : '');
-  updateQtyDisplay(canAdd);
+    stockLabel + (reserved > 0 ? ` (${reserved} ถูกจองโดยคนอื่น)` : '');
+  updateQtyDisplay(canAddBundles);
   document.getElementById("itemModal").classList.add("active");
 }
 
@@ -31,8 +36,9 @@ function updateQtyDisplay(maxQty) {
   const qtyInput = document.getElementById("qtyDisplay");
   qtyInput.value = currentQty;
   qtyInput.max = maxQty;
+  const bq = getBundleQty(currentItem);
   document.getElementById("modalTotalPrice").textContent =
-    `${formatPrice(currentQty * getPrice(currentItem))} บาท`;
+    `${formatPrice(currentQty * getPrice(currentItem) * bq)} บาท`;
   document.getElementById("qtyMinus").disabled = currentQty <= 1;
   document.getElementById("qtyPlus").disabled = currentQty >= maxQty;
 }
@@ -63,11 +69,14 @@ function addToCart() {
 
 function changeCartQty(itemId, delta) {
   if (!cart[itemId]) return;
-  const available = typeof getAvailableStock === 'function' ? getAvailableStock(cart[itemId].item) : cart[itemId].item.stock;
+  const item = cart[itemId].item;
+  const available = typeof getAvailableStock === 'function' ? getAvailableStock(item) : item.stock;
+  const bq = getBundleQty(item);
+  const maxBundles = getBundleCount(available, bq);
   const newQty = cart[itemId].qty + delta;
   if (newQty <= 0) {
     delete cart[itemId];
-  } else if (newQty > available) {
+  } else if (newQty > maxBundles) {
     return;
   } else {
     cart[itemId].qty = newQty;
@@ -99,26 +108,31 @@ function renderCart() {
   let total = 0;
   cartList.innerHTML = entries
     .map(([id, { item, qty }]) => {
-      const unitPrice = getPrice(item);
+      const bq = getBundleQty(item);
+      const unitPrice = getPrice(item) * bq;
       const subtotal = unitPrice * qty;
       total += subtotal;
       const available = typeof getAvailableStock === 'function' ? getAvailableStock(item) : (Number(item.stock) || 0);
-      const notEnough = qty > available;
-      const stockWarn = available <= 0 ? ' cart-item-out' : notEnough ? ' cart-item-low' : available <= 5 ? ' cart-item-low' : '';
+      const maxBundles = getBundleCount(available, bq);
+      const notEnough = qty > maxBundles;
+      const stockWarn = maxBundles <= 0 ? ' cart-item-out' : notEnough ? ' cart-item-low' : maxBundles <= 5 ? ' cart-item-low' : '';
+      const unitLabel = bq > 1 ? 'ชุดละ' : 'ชิ้นละ';
+      const stockLabel = bq > 1 ? `เหลือ ${maxBundles} ชุด` : `เหลือ ${available} ชิ้น`;
+      const qtyLabel = bq > 1 ? `${qty} ชุด (${qty * bq} ชิ้น)` : `${qty}`;
       return `
       <div class="cart-item${stockWarn}">
         <div class="cart-item-top">
           <span class="cart-item-name">${escapeHtml(item.name)}</span>
           <span class="cart-item-price">${formatPrice(subtotal)}฿</span>
         </div>
-        <div class="cart-item-stock">เหลือ ${available} ชิ้น${available <= 0 ? ' — สินค้าหมดแล้ว!' : notEnough ? ' — ไม่พอ!' : ''}</div>
+        <div class="cart-item-stock">${stockLabel}${maxBundles <= 0 ? ' — สินค้าหมดแล้ว!' : notEnough ? ' — ไม่พอ!' : ''}</div>
         <div class="cart-item-bottom">
           <div class="cart-item-controls">
             <button class="cart-qty-btn" data-cart-action="minus" data-cart-id="${id}" ${qty <= 1 ? "disabled" : ""} aria-label="ลดจำนวน">-</button>
-            <span class="cart-item-qty">${qty}</span>
-            <button class="cart-qty-btn" data-cart-action="plus" data-cart-id="${id}" ${qty >= available ? "disabled" : ""} aria-label="เพิ่มจำนวน">+</button>
+            <span class="cart-item-qty">${qtyLabel}</span>
+            <button class="cart-qty-btn" data-cart-action="plus" data-cart-id="${id}" ${qty >= maxBundles ? "disabled" : ""} aria-label="เพิ่มจำนวน">+</button>
           </div>
-          <span class="cart-item-unit">ชิ้นละ ${formatPrice(unitPrice)}฿</span>
+          <span class="cart-item-unit">${unitLabel} ${formatPrice(unitPrice)}฿</span>
           <button class="cart-item-remove" data-cart-action="remove" data-cart-id="${id}" aria-label="ลบสินค้า">&times;</button>
         </div>
       </div>

@@ -44,8 +44,9 @@ async function _doSync() {
   }
 
   const itemsMap = {};
-  for (const [id, { qty }] of entries) {
-    itemsMap[id] = qty;
+  for (const [id, { item, qty }] of entries) {
+    const bq = typeof getBundleQty === 'function' ? getBundleQty(item) : 1;
+    itemsMap[id] = qty * bq; // เก็บเป็นชิ้นจริง
   }
 
   try {

@@ -23,7 +23,7 @@ function loadProducts() {
         <tr draggable="true" data-id="${item.id}" style="${!isActive ? 'opacity:0.4;' : ''}">
           <td style="text-align:center;"><span class="drag-handle">☰</span> <span style="color:#e0b0ff;font-weight:600;">${index + 1}</span></td>
           <td><img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22><rect fill=%22%23333%22 width=%2250%22 height=%2250%22/></svg>'"></td>
-          <td>${escapeHtml(item.name)}${!isActive ? ' <span style="color:#ff4444;font-size:11px;">(ปิดอยู่)</span>' : ''}</td>
+          <td>${escapeHtml(item.name)}${item.bundleQty > 1 ? ` <span style="color:#ff9800;font-size:11px;">(ชุดละ ${item.bundleQty})</span>` : ''}${!isActive ? ' <span style="color:#ff4444;font-size:11px;">(ปิดอยู่)</span>' : ''}</td>
           <td style="text-align:center;">${formatPrice(item.price)} บาท</td>
           <td style="text-align:center;"><input type="number" step="any" min="0" class="promo-input" data-action="promo" data-id="${item.id}" value="${item.promoPrice != null ? item.promoPrice : ''}" placeholder="-"></td>
           <td style="font-weight:600;text-align:center;">${Number(item.stock) || 0}</td>
@@ -706,6 +706,7 @@ async function addProduct() {
     const docRef = db.collection('items').doc();
     const batch = db.batch();
     const maxSort = allProducts.reduce((max, p) => Math.max(max, p.sortOrder ?? 0), -1);
+    const bundleQty = parseInt(document.getElementById('pBundleQty').value) || 0;
     const newItem = {
       name,
       price,
@@ -714,6 +715,7 @@ async function addProduct() {
       sortOrder: maxSort + 1,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
+    if (bundleQty > 1) newItem.bundleQty = bundleQty;
     if (stock > 0 && addedBy) {
       newItem.adminStock = { [addedBy]: stock };
     }
@@ -746,6 +748,7 @@ function openAddProductModal() {
   document.getElementById('pPrice').value = '';
   document.getElementById('pStock').value = '';
   document.getElementById('pImage').value = '';
+  document.getElementById('pBundleQty').value = '';
   document.getElementById('pAddedBy').innerHTML = renderAdminOptions(currentAdminName);
   document.getElementById('addImagePreview').style.display = 'none';
   document.getElementById('addImageUploadText').textContent = 'คลิกเพื่อเลือกรูป';
@@ -768,6 +771,9 @@ function openEditProductModal(itemId, name, price, currentImage) {
   document.getElementById('editName').value = name;
   document.getElementById('editPrice').value = price;
   document.getElementById('editImage').value = '';
+  const item = allProducts.find(p => p.id === itemId);
+  const bqInput = document.getElementById('editBundleQty');
+  if (bqInput) bqInput.value = (item && item.bundleQty > 1) ? item.bundleQty : '';
 
   const preview = document.getElementById('editImagePreview');
   if (currentImage) {
@@ -803,7 +809,13 @@ async function confirmEditProduct() {
   btn.textContent = 'กำลังบันทึก...';
 
   try {
+    const bundleQty = parseInt(document.getElementById('editBundleQty').value) || 0;
     const updateData = { name, price };
+    if (bundleQty > 1) {
+      updateData.bundleQty = bundleQty;
+    } else {
+      updateData.bundleQty = firebase.firestore.FieldValue.delete();
+    }
     if (editImageBase64) {
       updateData.image = editImageBase64;
     }

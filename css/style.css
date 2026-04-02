@@ -1340,6 +1340,26 @@ body {
   margin-bottom: 5px;
 }
 
+/* ============ FEED LINK BANNER ============ */
+.feed-link {
+  text-align: center;
+  padding: 10px;
+  background: rgba(255, 105, 180, 0.1);
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #ff69b4;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+.feed-link:hover {
+  background: rgba(255, 105, 180, 0.25);
+  box-shadow: 0 0 15px rgba(255, 105, 180, 0.3);
+  transform: scale(1.01);
+}
+.feed-link:active {
+  transform: scale(0.99);
+}
+
 /* ============ PAYMENT TOGGLE ============ */
 .payment-toggle-wrap {
   display: flex;
@@ -1519,6 +1539,17 @@ body {
   background: rgba(255, 68, 68, 0.2);
   color: #ff4444;
   border: 1px solid rgba(255, 68, 68, 0.4);
+}
+
+.order-status.delivering {
+  background: rgba(33, 150, 243, 0.2);
+  color: #42a5f5;
+  border: 1px solid rgba(33, 150, 243, 0.4);
+}
+
+.order-item-row {
+  font-size: 13px;
+  padding: 2px 0;
 }
 
 .order-card-char {

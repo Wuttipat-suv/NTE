@@ -268,9 +268,13 @@
           <p class="field-error" id="editNameError"></p>
         </div>
         <div class="form-group">
-          <label for="editPrice">ราคา (บาท)</label>
+          <label for="editPrice">ราคา (บาท) <span style="color:#aaa;font-size:12px;">ต่อชิ้น</span></label>
           <input type="number" id="editPrice" min="0" step="any" />
           <p class="field-error" id="editPriceError"></p>
+        </div>
+        <div class="form-group">
+          <label for="editBundleQty">ขายเป็นชุด (ชิ้น/ชุด) <span style="color:#aaa;font-size:12px;">ว่าง = ขายทีละชิ้น</span></label>
+          <input type="number" id="editBundleQty" min="1" placeholder="1" />
         </div>
         <div class="form-group">
           <label>รูปสินค้า</label>
@@ -328,6 +332,10 @@
           <label for="pStock">จำนวน Stock</label>
           <input type="number" id="pStock" placeholder="0" min="0" />
           <p class="field-error" id="pStockError"></p>
+        </div>
+        <div class="form-group">
+          <label for="pBundleQty">ขายเป็นชุด (ชิ้น/ชุด) <span style="color:#aaa;font-size:12px;">ว่าง = ขายทีละชิ้น</span></label>
+          <input type="number" id="pBundleQty" min="1" placeholder="1" />
         </div>
         <div class="form-group">
           <label>รูปสินค้า</label>
@@ -464,6 +472,22 @@
       </div>
     </div>
 
+    <!-- CANCEL REASON MODAL -->
+    <div class="modal-overlay" id="cancelReasonModal">
+      <div class="modal" style="max-width: 400px;">
+        <h2>เหตุผลยกเลิก</h2>
+        <div class="form-group">
+          <label for="cancelReasonInput">ระบุเหตุผล</label>
+          <input type="text" id="cancelReasonInput" placeholder="เช่น ลูกค้าขอยกเลิก, สินค้าหมด" maxlength="200" />
+          <p class="field-error" id="cancelReasonError"></p>
+        </div>
+        <div class="modal-buttons">
+          <button class="btn-secondary" id="cancelReasonCancelBtn">ยกเลิก</button>
+          <button class="btn-primary" id="cancelReasonConfirmBtn">ยืนยันยกเลิก</button>
+        </div>
+      </div>
+    </div>
+
     <!-- EDIT DISPLAY NAME MODAL -->
     <div class="modal-overlay" id="editDisplayNameModal">
       <div class="modal" style="max-width: 400px;">
@@ -500,9 +524,9 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="js/firebase-config.js?v=5"></script>
     <script src="js/modal-alert.js?v=5"></script>
-    <script src="js/admin-core.js?v=4"></script>
-    <script src="js/admin-orders.js?v=4"></script>
-    <script src="js/admin-products.js?v=4"></script>
-    <script src="js/admin-settings.js?v=4"></script>
+    <script src="js/admin-core.js?v=5"></script>
+    <script src="js/admin-orders.js?v=5"></script>
+    <script src="js/admin-products.js?v=5"></script>
+    <script src="js/admin-settings.js?v=5"></script>
   </body>
 </html>

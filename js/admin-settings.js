@@ -147,11 +147,29 @@ async function editAdminDisplayName(uid, currentName) {
   } catch (e) { showAlert('แก้ชื่อไม่ได้: ' + e.message, 'ผิดพลาด'); }
 }
 
-function viewSlip(orderId) {
+async function viewSlip(orderId) {
   const order = loadedOrdersCache[orderId];
-  if (!order || !order.slipImage) return;
-  document.getElementById('slipModalImg').src = order.slipImage;
-  document.getElementById('slipModal').classList.add('active');
+  if (!order) return;
+
+  // รองรับ order เก่า (slipImage ใน doc) + order ใหม่ (แยก subcollection)
+  if (order.slipImage) {
+    document.getElementById('slipModalImg').src = order.slipImage;
+    document.getElementById('slipModal').classList.add('active');
+    return;
+  }
+
+  // โหลดจาก subcollection
+  try {
+    const slipDoc = await db.collection('orders').doc(orderId).collection('attachments').doc('slip').get();
+    if (slipDoc.exists && slipDoc.data().image) {
+      document.getElementById('slipModalImg').src = slipDoc.data().image;
+      document.getElementById('slipModal').classList.add('active');
+    } else {
+      showAlert('ไม่พบสลิปโอนเงิน', 'ไม่มีสลิป');
+    }
+  } catch (e) {
+    showAlert('โหลดสลิปไม่ได้: ' + e.message, 'ผิดพลาด');
+  }
 }
 
 // Event delegation for admin tables and order board
@@ -291,7 +309,7 @@ function loadOrders() {
                 ${order.originalPrice && order.originalPrice !== order.totalPrice ? `<span style="text-decoration:line-through;color:#aaa;font-size:12px;margin-left:5px;">${formatPrice(order.originalPrice)}</span>` : ''}
               </div>
               <div style="margin-top:8px;">
-                ${order.slipImage ? `<button class="btn-table secondary" data-action="viewSlip" data-id="${docId}">ดูสลิปโอนเงิน</button>` : '<span style="color:#ff4444; font-size:12px;">ไม่มีสลิปโอนเงิน</span>'}
+                ${(order.slipImage || order.hasSlip) ? `<button class="btn-table secondary" data-action="viewSlip" data-id="${docId}">ดูสลิปโอนเงิน</button>` : '<span style="color:#ff4444; font-size:12px;">ไม่มีสลิปโอนเงิน</span>'}
               </div>
             </div>
             <div class="admin-order-actions">
