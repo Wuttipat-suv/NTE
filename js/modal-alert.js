@@ -133,3 +133,44 @@ function showOrderToast(items, duration) {
     _toastQueue.push(data);
   }
 }
+
+// ============ QUOTA EXCEEDED DETECTION ============
+let _quotaBannerShown = false;
+
+function isQuotaError(err) {
+  if (!err) return false;
+  const msg = (err.message || err.code || '').toLowerCase();
+  return msg.includes('quota') || msg.includes('resource exhausted') || msg.includes('resource-exhausted');
+}
+
+function showQuotaBanner() {
+  if (_quotaBannerShown) return;
+  _quotaBannerShown = true;
+
+  let banner = document.getElementById('quotaBanner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'quotaBanner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#ff1744;color:#fff;padding:12px 16px;text-align:center;font-size:14px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);';
+    banner.innerHTML = `
+      ⚠️ Firestore quota หมดแล้ววันนี้ — บางฟีเจอร์อาจใช้ไม่ได้ชั่วคราว<br>
+      <span style="font-size:12px;font-weight:400;">แก้ถาวร: อัพเกรดเป็น Blaze plan (ฟรีเท่าเดิม จ่ายเฉพาะส่วนเกิน) →
+        <a href="https://console.firebase.google.com" target="_blank" style="color:#fff;text-decoration:underline;">Firebase Console</a>
+      </span>
+      <button onclick="this.parentElement.remove();window._quotaBannerShown=false;" style="position:absolute;right:10px;top:8px;background:none;border:none;color:#fff;font-size:18px;cursor:pointer;">&times;</button>
+    `;
+    document.body.prepend(banner);
+  }
+}
+
+function handleQuotaError(err, context) {
+  if (isQuotaError(err)) {
+    showQuotaBanner();
+    showAlert(
+      'Firestore quota หมดแล้ววันนี้ กรุณารอพรุ่งนี้ หรืออัพเกรดเป็น Blaze plan ที่ Firebase Console',
+      '⚠️ Quota หมด'
+    );
+    return true;
+  }
+  return false;
+}

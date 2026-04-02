@@ -366,7 +366,9 @@ async function submitOrder() {
     renderCart();
     document.getElementById("successModal").classList.add("active");
   } catch (e) {
-    showAlert("เกิดข้อผิดพลาด: " + e.message, "ผิดพลาด");
+    if (!handleQuotaError(e, 'submitOrder')) {
+      showAlert("เกิดข้อผิดพลาด: " + e.message, "ผิดพลาด");
+    }
   } finally {
     confirmBtn.disabled = false;
     confirmBtn.textContent = "ยืนยันสั่งซื้อ";

@@ -149,7 +149,9 @@ async function confirmDeliver() {
     closeDeliverModal();
     showToast('บันทึกการส่งของแล้ว');
   } catch (e) {
-    showAlert('บันทึกไม่ได้: ' + e.message, 'ผิดพลาด');
+    if (!handleQuotaError(e, 'deliver')) {
+      showAlert('บันทึกไม่ได้: ' + e.message, 'ผิดพลาด');
+    }
   } finally {
     btn.disabled = false;
     btn.textContent = 'ยืนยันส่งของ';
@@ -278,7 +280,9 @@ async function cancelOrder(orderId) {
 
     showToast('ยกเลิก order + คืน stock + คืนคูปองแล้ว');
   } catch (e) {
-    showAlert('ยกเลิกไม่ได้: ' + e.message, 'ผิดพลาด');
+    if (!handleQuotaError(e, 'cancel')) {
+      showAlert('ยกเลิกไม่ได้: ' + e.message, 'ผิดพลาด');
+    }
   }
 }
 

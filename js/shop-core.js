@@ -131,6 +131,7 @@ function loadItems() {
       },
       (e) => {
         console.error("โหลดสินค้าไม่ได้:", e);
+        if (typeof handleQuotaError === 'function') handleQuotaError(e, 'loadItems');
         grid.innerHTML =
           '<p style="color:#ff6b6b;grid-column:1/-1;text-align:center;">ไม่สามารถโหลดสินค้าได้ กรุณาลองใหม่</p>';
       },

@@ -44,6 +44,7 @@ function loadProducts() {
     });
   }, (e) => {
     console.error(e);
+    if (typeof handleQuotaError === 'function') handleQuotaError(e, 'loadProducts');
     tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#ff6b6b;">โหลดสินค้าไม่ได้</td></tr>';
   });
 }
@@ -115,7 +116,9 @@ async function flushStockAccum(itemId, itemName) {
       });
     });
   } catch (e) {
-    if (e.message.startsWith('stock ไม่พอ')) {
+    if (typeof handleQuotaError === 'function' && handleQuotaError(e, 'stockAdjust')) {
+      // handled
+    } else if (e.message.startsWith('stock ไม่พอ')) {
       showToast(`${itemName} ${e.message}`);
     } else {
       showAlert('แก้ stock ไม่ได้: ' + e.message, 'ผิดพลาด');
