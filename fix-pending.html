@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>แก้ รอส่งทิพย์ — BubbleShop</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
+    h1 { text-align: center; margin-bottom: 10px; font-size: 1.4rem; }
+    .subtitle { text-align: center; color: #aaa; margin-bottom: 20px; font-size: 0.85rem; }
+    #status { text-align: center; padding: 10px; margin-bottom: 15px; border-radius: 8px; background: #16213e; }
+    .btn { padding: 10px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; }
+    .btn-scan { background: #2196f3; color: #fff; }
+    .btn-fix { background: #ff9800; color: #fff; }
+    .btn-fix:disabled { background: #555; cursor: not-allowed; }
+    .btn-bar { text-align: center; margin-bottom: 20px; display: flex; gap: 10px; justify-content: center; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 8px 12px; border-bottom: 1px solid #333; text-align: left; }
+    th { background: #16213e; color: #4fc3f7; font-size: 0.85rem; }
+    td { font-size: 0.9rem; }
+    .pending-bad { color: #ff9800; font-weight: 700; }
+    .ok { color: #4caf50; }
+    .fixed { color: #4caf50; font-weight: 700; }
+    #log { margin-top: 15px; padding: 10px; background: #0f0f23; border-radius: 8px; font-size: 0.8rem; max-height: 200px; overflow-y: auto; white-space: pre-wrap; color: #aaa; }
+  </style>
+</head>
+<body>
+  <h1>แก้ "รอส่ง" ทิพย์</h1>
+  <p class="subtitle">สแกนทุกสินค้า → หา historyTotal ≠ stock → เพิ่ม stockHistory ปรับให้ตรง</p>
+
+  <div id="status">กด "สแกน" เพื่อเริ่ม</div>
+
+  <div class="btn-bar">
+    <button class="btn btn-scan" id="btnScan" onclick="scan()">สแกนทั้งหมด</button>
+    <button class="btn btn-fix" id="btnFix" onclick="fixAll()" disabled>แก้ไขทั้งหมด</button>
+  </div>
+
+  <div id="result"></div>
+  <div id="log"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script>
+    let problemItems = [];
+
+    function log(msg) {
+      const el = document.getElementById('log');
+      el.textContent += msg + '\n';
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function setStatus(msg) {
+      document.getElementById('status').innerHTML = msg;
+    }
+
+    // ต้อง login ก่อน
+    async function ensureAuth() {
+      if (firebase.auth().currentUser) return true;
+      const email = prompt('Email แอดมิน:');
+      if (!email) return false;
+      const pass = prompt('รหัสผ่าน:');
+      if (!pass) return false;
+      try {
+        await firebase.auth().signInWithEmailAndPassword(email, pass);
+        return true;
+      } catch (e) {
+        alert('Login ไม่ได้: ' + e.message);
+        return false;
+      }
+    }
+
+    async function scan() {
+      if (!await ensureAuth()) return;
+
+      const btnScan = document.getElementById('btnScan');
+      const btnFix = document.getElementById('btnFix');
+      btnScan.disabled = true;
+      btnFix.disabled = true;
+      problemItems = [];
+      document.getElementById('log').textContent = '';
+      setStatus('กำลังสแกน...');
+
+      try {
+        const itemsSnap = await db.collection('items').get();
+        log(`พบสินค้า ${itemsSnap.size} รายการ`);
+
+        let scanned = 0;
+        let problems = 0;
+
+        for (const itemDoc of itemsSnap.docs) {
+          const item = itemDoc.data();
+          const actualStock = Number(item.stock) || 0;
+          const histSnap = await itemDoc.ref.collection('stockHistory').get();
+
+          let historyTotal = 0;
+          histSnap.docs.forEach(h => { historyTotal += (h.data().qty || 0); });
+
+          const pending = historyTotal - actualStock;
+          scanned++;
+
+          if (pending !== 0) {
+            problems++;
+            problemItems.push({
+              id: itemDoc.id,
+              name: item.name || itemDoc.id,
+              actualStock,
+              historyTotal,
+              pending
+            });
+            log(`⚠ ${item.name || itemDoc.id}: history=${historyTotal}, stock=${actualStock}, รอส่งทิพย์=${pending}`);
+          }
+
+          if (scanned % 10 === 0) {
+            setStatus(`สแกนแล้ว ${scanned}/${itemsSnap.size} ... พบปัญหา ${problems}`);
+          }
+        }
+
+        setStatus(`สแกนเสร็จ: ${scanned} สินค้า, <span style="color:${problems > 0 ? '#ff9800' : '#4caf50'}">${problems} มีรอส่งทิพย์</span>`);
+
+        // render table
+        if (problemItems.length > 0) {
+          btnFix.disabled = false;
+          document.getElementById('result').innerHTML = `
+            <table>
+              <tr><th>สินค้า</th><th>Stock จริง</th><th>History รวม</th><th>รอส่งทิพย์</th><th>จะแก้</th></tr>
+              ${problemItems.map(p => `
+                <tr>
+                  <td>${esc(p.name)}</td>
+                  <td>${p.actualStock}</td>
+                  <td>${p.historyTotal}</td>
+                  <td class="pending-bad">${p.pending}</td>
+                  <td>เพิ่ม record ${-p.pending}</td>
+                </tr>
+              `).join('')}
+            </table>
+          `;
+        } else {
+          document.getElementById('result').innerHTML = '<p style="text-align:center;color:#4caf50;margin-top:20px;">ไม่มีปัญหา ทุกสินค้าตรงกัน ✓</p>';
+        }
+
+      } catch (e) {
+        setStatus('Error: ' + e.message);
+        log('ERROR: ' + e.message);
+      }
+      btnScan.disabled = false;
+    }
+
+    async function fixAll() {
+      if (problemItems.length === 0) return;
+      if (!confirm(`จะแก้ ${problemItems.length} สินค้า — เพิ่ม stockHistory record ปรับให้ตรง\n\nยืนยัน?`)) return;
+
+      const btnFix = document.getElementById('btnFix');
+      btnFix.disabled = true;
+      setStatus('กำลังแก้ไข...');
+
+      let fixed = 0;
+      try {
+        // batch ทีละ 250 (2 ops per item = 500 max)
+        for (let i = 0; i < problemItems.length; i += 250) {
+          const batch = db.batch();
+          const chunk = problemItems.slice(i, i + 250);
+
+          chunk.forEach(p => {
+            const correction = -p.pending; // ถ้า pending=6 → เพิ่ม record -6
+            const itemRef = db.collection('items').doc(p.id);
+            batch.set(itemRef.collection('stockHistory').doc(), {
+              qty: correction,
+              addedBy: 'ระบบ (แก้รอส่งทิพย์)',
+              note: `ปรับ history ให้ตรง stock (แก้ ${p.pending > 0 ? '+' : ''}${p.pending})`,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          });
+
+          await batch.commit();
+          fixed += chunk.length;
+          setStatus(`แก้แล้ว ${fixed}/${problemItems.length}...`);
+          log(`batch ${Math.floor(i / 250) + 1}: แก้ ${chunk.length} สินค้า`);
+        }
+
+        setStatus(`<span style="color:#4caf50">แก้เสร็จ ${fixed} สินค้า ✓</span> — รอส่งทิพย์ถูกลบแล้ว`);
+        log(`เสร็จ! แก้ ${fixed} สินค้า`);
+
+        // update table
+        document.querySelectorAll('.pending-bad').forEach(el => {
+          el.textContent = '0 ✓';
+          el.className = 'fixed';
+        });
+
+        problemItems = [];
+      } catch (e) {
+        setStatus('Error: ' + e.message);
+        log('ERROR: ' + e.message);
+        btnFix.disabled = false;
+      }
+    }
+
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+  </script>
+</body>
+</html>
