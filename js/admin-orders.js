@@ -118,8 +118,7 @@ async function confirmDeliver() {
           }
         );
         transaction.set(db.collection('items').doc(di.itemId), {
-          adminStock: { [adminName]: firebase.firestore.FieldValue.increment(-di.qty) },
-          soldCount: firebase.firestore.FieldValue.increment(di.qty)
+          adminStock: { [adminName]: firebase.firestore.FieldValue.increment(-di.qty) }
         }, { merge: true });
       }
 
@@ -142,6 +141,16 @@ async function confirmDeliver() {
           completedCount: firebase.firestore.FieldValue.increment(1),
           totalRevenue: firebase.firestore.FieldValue.increment(orderTotal)
         }, { merge: true });
+        // เพิ่ม soldCount +1 ต่อ item (นับต่อ order)
+        const seenItems = new Set();
+        orderItems.forEach(item => {
+          if (item.itemId && !seenItems.has(item.itemId)) {
+            seenItems.add(item.itemId);
+            transaction.set(db.collection('items').doc(item.itemId), {
+              soldCount: firebase.firestore.FieldValue.increment(1)
+            }, { merge: true });
+          }
+        });
       }
 
       transaction.update(orderRef, updateData);

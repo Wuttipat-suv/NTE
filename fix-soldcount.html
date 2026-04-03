@@ -74,9 +74,12 @@
         ordersSnap.docs.forEach(doc => {
           const order = doc.data();
           if (!Array.isArray(order.items)) return;
+          // นับ 1 ต่อ order (ไม่ว่าซื้อกี่ชิ้น)
+          const seen = new Set();
           order.items.forEach(item => {
-            if (item.itemId) {
-              soldMap[item.itemId] = (soldMap[item.itemId] || 0) + (item.qty || 0);
+            if (item.itemId && !seen.has(item.itemId)) {
+              seen.add(item.itemId);
+              soldMap[item.itemId] = (soldMap[item.itemId] || 0) + 1;
             }
           });
         });
@@ -92,7 +95,7 @@
         // แสดงตาราง
         document.getElementById('result').innerHTML = `
           <table>
-            <tr><th>#</th><th>สินค้า</th><th>ยอดขาย (ชิ้น)</th></tr>
+            <tr><th>#</th><th>สินค้า</th><th>ยอดขาย (orders)</th></tr>
             ${entries.map(([id, qty], i) => `
               <tr>
                 <td>${i + 1}</td>
