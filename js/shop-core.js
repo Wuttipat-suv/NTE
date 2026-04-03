@@ -466,7 +466,7 @@ document.addEventListener("DOMContentLoaded", () => {
       errEl.textContent = "กำลังตรวจสอบโค้ด...";
       errEl.style.color = "#aaa";
       try {
-        const doc = await db.collection("coupons").doc(code).get();
+        const doc = await db.collection("coupons").doc(code).get({ source: 'server' }).catch(() => db.collection("coupons").doc(code).get());
         if (!doc.exists) throw new Error("ไม่พบโค้ดส่วนลดนี้");
 
         const c = doc.data();
