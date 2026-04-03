@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>แก้ รอส่งทิพย์ — BubbleShop</title>
+  <title>แก้ stock + adminStock — BubbleShop</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
@@ -15,19 +15,17 @@
     .btn-fix { background: #ff9800; color: #fff; }
     .btn-fix:disabled { background: #555; cursor: not-allowed; }
     .btn-bar { text-align: center; margin-bottom: 20px; display: flex; gap: 10px; justify-content: center; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { padding: 8px 12px; border-bottom: 1px solid #333; text-align: left; }
-    th { background: #16213e; color: #4fc3f7; font-size: 0.85rem; }
-    td { font-size: 0.9rem; }
-    .pending-bad { color: #ff9800; font-weight: 700; }
-    .ok { color: #4caf50; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
+    th, td { padding: 6px 10px; border-bottom: 1px solid #333; text-align: left; }
+    th { background: #16213e; color: #4fc3f7; }
+    .bad { color: #ff9800; font-weight: 700; }
     .fixed { color: #4caf50; font-weight: 700; }
-    #log { margin-top: 15px; padding: 10px; background: #0f0f23; border-radius: 8px; font-size: 0.8rem; max-height: 200px; overflow-y: auto; white-space: pre-wrap; color: #aaa; }
+    #log { margin-top: 15px; padding: 10px; background: #0f0f23; border-radius: 8px; font-size: 0.8rem; max-height: 250px; overflow-y: auto; white-space: pre-wrap; color: #aaa; }
   </style>
 </head>
 <body>
-  <h1>แก้ "รอส่ง" ทิพย์</h1>
-  <p class="subtitle">สแกนทุกสินค้า → หา historyTotal ≠ stock → เพิ่ม stock ให้ตรง historyTotal (คืนของที่หายตอนปิด/เปิด)</p>
+  <h1>แก้ stock + adminStock ให้ตรง stockHistory</h1>
+  <p class="subtitle">สแกนทุกสินค้า → คำนวณ stock และ adminStock จาก stockHistory → แก้ให้ตรง</p>
 
   <div id="status">กด "สแกน" เพื่อเริ่ม</div>
 
@@ -56,7 +54,6 @@
       document.getElementById('status').innerHTML = msg;
     }
 
-    // ต้อง login ก่อน
     async function ensureAuth() {
       if (firebase.auth().currentUser) return true;
       const email = prompt('Email แอดมิน:');
@@ -92,25 +89,60 @@
 
         for (const itemDoc of itemsSnap.docs) {
           const item = itemDoc.data();
-          const actualStock = Number(item.stock) || 0;
+          const currentStock = Number(item.stock) || 0;
+          const currentAdminStock = item.adminStock || {};
+
           const histSnap = await itemDoc.ref.collection('stockHistory').get();
 
-          let historyTotal = 0;
-          histSnap.docs.forEach(h => { historyTotal += (h.data().qty || 0); });
+          // คำนวณ stock และ adminStock ที่ถูกต้องจาก stockHistory
+          let correctStock = 0;
+          const correctAdminStock = {};
 
-          const pending = historyTotal - actualStock;
+          histSnap.docs.forEach(h => {
+            const d = h.data();
+            const qty = d.qty || 0;
+            const who = d.addedBy || 'ไม่ระบุ';
+            correctStock += qty;
+            correctAdminStock[who] = (correctAdminStock[who] || 0) + qty;
+          });
+
+          // เช็คว่า stock ตรงมั้ย
+          const stockDiff = correctStock - currentStock;
+
+          // เช็คว่า adminStock ตรงมั้ย
+          const adminDiffs = {};
+          let hasAdminDiff = false;
+          const allAdmins = new Set([...Object.keys(correctAdminStock), ...Object.keys(currentAdminStock)]);
+          for (const admin of allAdmins) {
+            const correct = correctAdminStock[admin] || 0;
+            const current = Number(currentAdminStock[admin]) || 0;
+            if (correct !== current) {
+              adminDiffs[admin] = { current, correct, diff: correct - current };
+              hasAdminDiff = true;
+            }
+          }
+
           scanned++;
 
-          if (pending !== 0) {
+          if (stockDiff !== 0 || hasAdminDiff) {
             problems++;
             problemItems.push({
               id: itemDoc.id,
               name: item.name || itemDoc.id,
-              actualStock,
-              historyTotal,
-              pending
+              currentStock,
+              correctStock,
+              stockDiff,
+              adminDiffs,
+              correctAdminStock
             });
-            log(`⚠ ${item.name || itemDoc.id}: history=${historyTotal}, stock=${actualStock}, รอส่งทิพย์=${pending}`);
+
+            let detail = `stock: ${currentStock} → ${correctStock}`;
+            if (hasAdminDiff) {
+              detail += ' | adminStock: ' + Object.entries(adminDiffs)
+                .map(([a, d]) => `${a}: ${d.current}→${d.correct}`)
+                .join(', ');
+            }
+            log(`⚠ ${item.name || itemDoc.id}: ${detail}`);
           }
 
           if (scanned % 10 === 0) {
@@ -118,27 +150,27 @@
           }
         }
 
-        setStatus(`สแกนเสร็จ: ${scanned} สินค้า, <span style="color:${problems > 0 ? '#ff9800' : '#4caf50'}">${problems} มีรอส่งทิพย์</span>`);
+        setStatus(`สแกนเสร็จ: ${scanned} สินค้า, <span style="color:${problems > 0 ? '#ff9800' : '#4caf50'}">${problems} ต้องแก้</span>`);
 
-        // render table
         if (problemItems.length > 0) {
           btnFix.disabled = false;
           document.getElementById('result').innerHTML = `
             <table>
-              <tr><th>สินค้า</th><th>Stock จริง</th><th>History รวม</th><th>รอส่งทิพย์</th><th>จะแก้</th></tr>
+              <tr><th>สินค้า</th><th>Stock ปัจจุบัน</th><th>Stock ที่ถูก</th><th>adminStock ที่ผิด</th></tr>
               ${problemItems.map(p => `
                 <tr>
                   <td>${esc(p.name)}</td>
-                  <td>${p.actualStock}</td>
-                  <td>${p.historyTotal}</td>
-                  <td class="pending-bad">${p.pending}</td>
-                  <td>stock ${p.actualStock} → ${p.historyTotal} (${p.pending > 0 ? '+' : ''}${p.pending})</td>
+                  <td class="${p.stockDiff !== 0 ? 'bad' : ''}">${p.currentStock}</td>
+                  <td>${p.correctStock}</td>
+                  <td class="bad">${Object.entries(p.adminDiffs).map(([a, d]) =>
+                    `${esc(a)}: ${d.current}→${d.correct}`
+                  ).join(', ') || '-'}</td>
                 </tr>
               `).join('')}
             </table>
           `;
         } else {
-          document.getElementById('result').innerHTML = '<p style="text-align:center;color:#4caf50;margin-top:20px;">ไม่มีปัญหา ทุกสินค้าตรงกัน ✓</p>';
+          document.getElementById('result').innerHTML = '<p style="text-align:center;color:#4caf50;margin-top:20px;">ทุกสินค้าตรงกัน ไม่ต้องแก้</p>';
         }
 
       } catch (e) {
@@ -150,7 +182,7 @@
 
     async function fixAll() {
       if (problemItems.length === 0) return;
-      if (!confirm(`จะแก้ ${problemItems.length} สินค้า — เพิ่ม stock ให้ตรง historyTotal (คืนของที่หาย)\n\nยืนยัน?`)) return;
+      if (!confirm(`จะแก้ ${problemItems.length} สินค้า — ปรับ stock + adminStock ให้ตรง stockHistory\n\nยืนยัน?`)) return;
 
       const btnFix = document.getElementById('btnFix');
       btnFix.disabled = true;
@@ -158,19 +190,19 @@
 
       let fixed = 0;
       try {
-        // batch ทีละ 250 (2 ops per item = 500 max)
         for (let i = 0; i < problemItems.length; i += 250) {
           const batch = db.batch();
           const chunk = problemItems.slice(i, i + 250);
 
           chunk.forEach(p => {
-            // เพิ่ม stock ให้ตรง historyTotal
-            // เช่น history=40, stock=34, pending=6 → stock +6 → stock=40 → pending=0
             const itemRef = db.collection('items').doc(p.id);
-            batch.set(itemRef, {
-              stock: firebase.firestore.FieldValue.increment(p.pending),
-              _fixPending: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+            // set stock ตรงๆ + adminStock ทั้ง map ใหม่
+            const updateData = {
+              stock: p.correctStock,
+              adminStock: p.correctAdminStock,
+              _fixTool: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            batch.set(itemRef, updateData, { merge: true });
           });
 
           await batch.commit();
@@ -179,12 +211,18 @@
           log(`batch ${Math.floor(i / 250) + 1}: แก้ ${chunk.length} สินค้า`);
         }
 
-        setStatus(`<span style="color:#4caf50">แก้เสร็จ ${fixed} สินค้า ✓</span> — stock คืนให้ตรง historyTotal แล้ว`);
+        // ล้าง disabled data ใน settings/adminStock
+        try {
+          await db.collection('settings').doc('adminStock').set({ disabled: {} }, { merge: true });
+          log('ล้าง disabled admin data แล้ว');
+        } catch (e) {
+          log('WARNING: ล้าง disabled ไม่ได้: ' + e.message);
+        }
+
+        setStatus(`<span style="color:#4caf50">แก้เสร็จ ${fixed} สินค้า ✓</span> — stock + adminStock ตรง stockHistory แล้ว`);
         log(`เสร็จ! แก้ ${fixed} สินค้า`);
 
-        // update table
-        document.querySelectorAll('.pending-bad').forEach(el => {
-          el.textContent = '0 ✓';
+        document.querySelectorAll('.bad').forEach(el => {
           el.className = 'fixed';
         });
 
