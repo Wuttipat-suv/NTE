@@ -572,14 +572,21 @@ async function toggleAdminStock(adminName, enabling) {
     }
 
     const entries = Object.entries(saved);
-    for (let i = 0; i < entries.length; i += 498) {
+    for (let i = 0; i < entries.length; i += 249) {
       const batch = db.batch();
       entries.slice(i, i + 498).forEach(([itemId, qty]) => {
-        batch.set(db.collection('items').doc(itemId), {
+        const itemRef = db.collection('items').doc(itemId);
+        batch.set(itemRef, {
           stock: firebase.firestore.FieldValue.increment(qty),
           adminStock: { [adminName]: firebase.firestore.FieldValue.increment(qty) },
           _adminAdjust: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
+        batch.set(itemRef.collection('stockHistory').doc(), {
+          qty: qty,
+          addedBy: adminName,
+          note: 'เปิด stock กลับ',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
       });
       if (i === 0) {
         batch.set(db.collection('settings').doc('adminStock'), {
@@ -640,14 +647,21 @@ async function toggleAdminStock(adminName, enabling) {
     const entries = Object.entries(savedAmounts);
     entries.forEach(([itemId, { qty }]) => { saveForRestore[itemId] = qty; });
 
-    for (let i = 0; i < entries.length; i += 498) {
+    for (let i = 0; i < entries.length; i += 249) {
       const batch = db.batch();
-      entries.slice(i, i + 498).forEach(([itemId, { qty, key }]) => {
-        batch.set(db.collection('items').doc(itemId), {
+      entries.slice(i, i + 249).forEach(([itemId, { qty, key }]) => {
+        const itemRef = db.collection('items').doc(itemId);
+        batch.set(itemRef, {
           stock: firebase.firestore.FieldValue.increment(-qty),
           adminStock: { [key]: firebase.firestore.FieldValue.increment(-qty) },
           _adminAdjust: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
+        batch.set(itemRef.collection('stockHistory').doc(), {
+          qty: -qty,
+          addedBy: key,
+          note: 'ปิด stock แอดมิน',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
       });
       if (i === 0) {
         batch.set(db.collection('settings').doc('adminStock'), {
