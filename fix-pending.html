@@ -43,6 +43,32 @@
   <script src="js/firebase-config.js"></script>
   <script>
     let problemItems = [];
+    let aliasMap = {}; // raw → displayName
+
+    async function loadAdminAliases() {
+      try {
+        const snap = await db.collection('admin_users').get();
+        snap.docs.forEach(doc => {
+          const d = doc.data();
+          const rawName = d.name || (d.email ? d.email.split('@')[0] : doc.id);
+          const display = d.displayName || rawName;
+          if (d.email) {
+            aliasMap[d.email] = display;
+            aliasMap[d.email.split('@')[0]] = display;
+          }
+          aliasMap[rawName] = display;
+          aliasMap[doc.id] = display;
+        });
+        log('โหลดชื่อแอดมิน: ' + Object.values(aliasMap).filter((v, i, a) => a.indexOf(v) === i).join(', '));
+      } catch (e) {
+        log('WARNING: โหลด admin_users ไม่ได้: ' + e.message);
+      }
+    }
+
+    function resolveName(raw) {
+      if (!raw) return 'ไม่ระบุ';
+      return aliasMap[raw] || raw;
+    }
 
     function log(msg) {
       const el = document.getElementById('log');
@@ -81,6 +107,7 @@
       setStatus('กำลังสแกน...');
 
       try {
+        await loadAdminAliases();
         const itemsSnap = await db.collection('items').get();
         log(`พบสินค้า ${itemsSnap.size} รายการ`);
 
@@ -94,17 +121,24 @@
 
           const histSnap = await itemDoc.ref.collection('stockHistory').get();
 
-          // คำนวณ stock และ adminStock ที่ถูกต้องจาก stockHistory
+          // คำนวณ stock และ adminStock ที่ถูกต้องจาก stockHistory (resolve ชื่อ)
           let correctStock = 0;
           const correctAdminStock = {};
 
           histSnap.docs.forEach(h => {
             const d = h.data();
             const qty = d.qty || 0;
-            const who = d.addedBy || 'ไม่ระบุ';
+            const who = resolveName(d.addedBy); // resolve เป็นชื่อแสดงผล
             correctStock += qty;
             correctAdminStock[who] = (correctAdminStock[who] || 0) + qty;
           });
+
+          // resolve ชื่อใน currentAdminStock ด้วย เพื่อเทียบ
+          const resolvedCurrentAdminStock = {};
+          for (const [key, val] of Object.entries(currentAdminStock)) {
+            const resolved = resolveName(key);
+            resolvedCurrentAdminStock[resolved] = (resolvedCurrentAdminStock[resolved] || 0) + (Number(val) || 0);
+          }
 
           // เช็คว่า stock ตรงมั้ย
           const stockDiff = correctStock - currentStock;
@@ -112,10 +146,10 @@
           // เช็คว่า adminStock ตรงมั้ย
           const adminDiffs = {};
           let hasAdminDiff = false;
-          const allAdmins = new Set([...Object.keys(correctAdminStock), ...Object.keys(currentAdminStock)]);
+          const allAdmins = new Set([...Object.keys(correctAdminStock), ...Object.keys(resolvedCurrentAdminStock)]);
           for (const admin of allAdmins) {
             const correct = correctAdminStock[admin] || 0;
-            const current = Number(currentAdminStock[admin]) || 0;
+            const current = resolvedCurrentAdminStock[admin] || 0;
             if (correct !== current) {
               adminDiffs[admin] = { current, correct, diff: correct - current };
               hasAdminDiff = true;
