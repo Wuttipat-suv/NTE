@@ -200,17 +200,23 @@
             correctAdminStock[who] = (correctAdminStock[who] || 0) + qty;
           });
 
-          // resolve ชื่อ currentAdminStock
+          const stockDiff = correctStock - currentStock;
+
+          // เช็คว่า adminStock ต้องแก้มั้ย — เทียบ raw keys ด้วย
+          // ถ้ามี key ดิบ (bubbleshop.xxx) อยู่ = ต้องแก้ทั้งหมด
+          let hasRawKeys = false;
+          for (const key of Object.keys(currentAdminStock)) {
+            if (key !== resolveName(key)) { hasRawKeys = true; break; }
+          }
+
+          const adminDiffs = {};
+          let hasAdminDiff = hasRawKeys;
+          // เทียบโดย resolve ชื่อ
           const resolvedCurrent = {};
           for (const [key, val] of Object.entries(currentAdminStock)) {
             const resolved = resolveName(key);
             resolvedCurrent[resolved] = (resolvedCurrent[resolved] || 0) + (Number(val) || 0);
           }
-
-          const stockDiff = correctStock - currentStock;
-
-          const adminDiffs = {};
-          let hasAdminDiff = false;
           const allAdmins = new Set([...Object.keys(correctAdminStock), ...Object.keys(resolvedCurrent)]);
           for (const admin of allAdmins) {
             const correct = correctAdminStock[admin] || 0;
@@ -218,6 +224,12 @@
             if (correct !== current) {
               adminDiffs[admin] = { current, correct };
               hasAdminDiff = true;
+            }
+          }
+          if (hasRawKeys && Object.keys(adminDiffs).length === 0) {
+            // ค่าตรงแล้วแต่มี key ดิบ → แสดงว่าต้องแก้ key
+            for (const admin of Object.keys(correctAdminStock)) {
+              adminDiffs[admin] = { current: resolvedCurrent[admin] || 0, correct: correctAdminStock[admin] || 0 };
             }
           }
 
@@ -295,11 +307,12 @@
 
           chunk.forEach(p => {
             const itemRef = db.collection('items').doc(p.id);
-            batch.set(itemRef, {
+            // ใช้ update เพื่อ REPLACE adminStock ทั้ง map (ลบ key ดิบออก)
+            batch.update(itemRef, {
               stock: p.correctStock,
               adminStock: p.correctAdminStock,
               _fixTool: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+            });
           });
 
           await batch.commit();
