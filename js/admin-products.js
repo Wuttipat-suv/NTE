@@ -22,7 +22,7 @@ function loadProducts() {
   }, (e) => {
     console.error(e);
     if (typeof handleQuotaError === 'function') handleQuotaError(e, 'loadProducts');
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#ff6b6b;">โหลดสินค้าไม่ได้</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#ff6b6b;">โหลดสินค้าไม่ได้</td></tr>';
   });
 }
 
@@ -30,7 +30,7 @@ function processProductSnapshot(snapshot) {
   const tbody = document.getElementById('productTableBody');
   if (snapshot.empty) {
       allProducts = [];
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#aaa;">ยังไม่มีสินค้า</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#aaa;">ยังไม่มีสินค้า</td></tr>';
       return;
     }
 
@@ -47,6 +47,7 @@ function processProductSnapshot(snapshot) {
           <td style="text-align:center;">${formatPrice(item.price)} บาท</td>
           <td style="text-align:center;"><input type="number" step="any" min="0" class="promo-input" data-action="promo" data-id="${item.id}" value="${item.promoPrice != null ? item.promoPrice : ''}" placeholder="-"></td>
           <td style="font-weight:600;text-align:center;">${Number(item.stock) || 0}</td>
+          <td style="text-align:center;color:#4fc3f7;">${Number(item.soldCount) || 0}</td>
           <td style="text-align:center;"><div class="stock-btn-group"><button class="btn-stock-add" data-action="addStock" data-id="${item.id}" data-name="${escapeHtml(item.name)}">+</button><button class="btn-stock-reduce" data-action="reduceStock" data-id="${item.id}" data-name="${escapeHtml(item.name)}">-</button></div></td>
           <td style="text-align:center;"><button class="btn-icon" data-action="stockHistory" data-id="${item.id}" data-name="${escapeHtml(item.name)}">&#128065;</button></td>
           <td style="text-align:center;white-space:nowrap;">
