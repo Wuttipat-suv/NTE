@@ -551,8 +551,17 @@ function renderAdminStockToggles() {
 
 async function toggleAdminStock(adminName, enabling) {
   if (enabling) {
-    // คืน stock
-    const saved = disabledAdminsCache[adminName];
+    // คืน stock — ดึงข้อมูลจาก Firestore ตรงๆ ไม่พึ่ง cache (อาจ stale)
+    let saved = disabledAdminsCache[adminName];
+    try {
+      const freshDoc = await db.collection('settings').doc('adminStock').get();
+      if (freshDoc.exists && freshDoc.data().disabled && freshDoc.data().disabled[adminName]) {
+        saved = freshDoc.data().disabled[adminName];
+        disabledAdminsCache = freshDoc.data().disabled;
+      }
+    } catch (e) {
+      console.warn('toggleAdminStock: fetch fresh disabled data failed, using cache', e);
+    }
     if (!saved || Object.keys(saved).length === 0) {
       // ไม่มีข้อมูลที่เก็บไว้ แค่ลบ flag
       await db.collection('settings').doc('adminStock').set({
@@ -591,7 +600,18 @@ async function toggleAdminStock(adminName, enabling) {
 
     const savedAmounts = {};
     const aliases = typeof getAdminAliases === 'function' ? getAdminAliases(adminName) : [adminName];
-    for (const item of allProducts) {
+    // ถ้า allProducts ว่าง (quota mode) ให้ fetch จาก Firestore ตรงๆ
+    let productList = allProducts;
+    if (!productList || productList.length === 0) {
+      try {
+        const snap = await db.collection('items').get();
+        productList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (e) {
+        showAlert('โหลดสินค้าไม่ได้: ' + e.message, 'ผิดพลาด');
+        return;
+      }
+    }
+    for (const item of productList) {
       const adminStockMap = item.adminStock || {};
       let qty = 0;
       let matchedKey = adminName;
