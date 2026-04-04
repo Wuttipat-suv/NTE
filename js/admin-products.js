@@ -575,7 +575,7 @@ async function toggleAdminStock(adminName, enabling) {
     const entries = Object.entries(saved);
     for (let i = 0; i < entries.length; i += 249) {
       const batch = db.batch();
-      entries.slice(i, i + 498).forEach(([itemId, qty]) => {
+      entries.slice(i, i + 249).forEach(([itemId, qty]) => {
         const itemRef = db.collection('items').doc(itemId);
         batch.set(itemRef, {
           stock: firebase.firestore.FieldValue.increment(qty),
