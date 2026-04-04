@@ -42,7 +42,6 @@ let cart = {}; // { itemId: { item, qty } }
 let currentItem = null;
 let currentQty = 1;
 let shopOpen = true;
-let paymentEnabled = true;
 let customerPayMode = 'order'; // 'pay' = โอนเลย, 'order' = สั่งก่อน
 let customerSlipAttach = true; // แนบสลิปหรือไม่
 
@@ -737,11 +736,9 @@ function processShopSettings(doc) {
     else currentShopState = "auto";
     closeReason = data.closeReason || "";
     if (data.promptpay) currentPromptPay = data.promptpay;
-    paymentEnabled = data.paymentEnabled !== false;
   } else {
     currentShopState = "auto";
     closeReason = "";
-    paymentEnabled = true;
   }
   applyShopStatus();
   applyPaymentStatus();

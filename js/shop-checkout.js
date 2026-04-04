@@ -210,7 +210,7 @@ async function submitOrder() {
     showFieldError("confirmCheckboxError", "กรุณายอมรับเงื่อนไขก่อนสั่งซื้อ");
     hasError = true;
   }
-  if (!slipImageBase64 && customerPayMode === 'pay' && customerSlipAttach && (typeof paymentEnabled === 'undefined' || paymentEnabled)) {
+  if (!slipImageBase64 && customerPayMode === 'pay' && customerSlipAttach) {
     showFieldError("slipUploadError", "กรุณาอัปโหลดรูปภาพสลิปโอนเงิน");
     hasError = true;
   }
