@@ -31,7 +31,15 @@ function openSummaryModal() {
 
   document.getElementById("summaryTotalPrice").textContent = `${formatPrice(total)} บาท`;
   
-  // Reset payment & coupon
+  // Reset payment mode กลับ default (สั่งก่อน)
+  customerPayMode = 'order';
+  const btnPay = document.getElementById("btnPayNow");
+  const btnOrder = document.getElementById("btnOrderFirst");
+  if (btnPay) btnPay.classList.remove("active");
+  if (btnOrder) btnOrder.classList.add("active");
+  if (typeof applyPaymentStatus === 'function') applyPaymentStatus();
+
+  // Reset coupon & slip
   appliedCoupon = null;
   slipImageBase64 = null;
   document.getElementById("inputCoupon").value = "";

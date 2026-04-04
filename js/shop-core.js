@@ -43,7 +43,7 @@ let currentItem = null;
 let currentQty = 1;
 let shopOpen = true;
 let paymentEnabled = true;
-let customerPayMode = 'pay'; // 'pay' = โอนเลย, 'order' = สั่งก่อน
+let customerPayMode = 'order'; // 'pay' = โอนเลย, 'order' = สั่งก่อน
 let customerSlipAttach = true; // แนบสลิปหรือไม่
 
 // Payment & Coupon State
