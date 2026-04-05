@@ -434,6 +434,22 @@
         </div>
       </div>
     </div>
+    <!-- PAY MODE MODAL -->
+    <div class="modal-overlay" id="payModeModal">
+      <div class="modal" style="max-width: 480px; text-align: center;">
+        <h2>ตั้งค่าโหมดชำระเงิน</h2>
+        <p style="color: #aaa; font-size: 14px; margin-bottom: 20px;">เลือกวิธีชำระเงินที่ลูกค้าใช้ได้</p>
+
+        <div class="shop-state-buttons">
+          <button class="btn-shop-mode auto" id="btnPayModeBoth">🟢 ลูกค้าเลือกเอง<br><span>(เลือกได้ทั้ง "โอนเลย" และ "สั่งก่อน")</span></button>
+          <button class="btn-shop-mode force-open" id="btnPayModePayOnly">💳 โอนเท่านั้น<br><span>(บังคับโอนเงินทันที — ใช้ตอนไม่อยู่ดูแลเพจ)</span></button>
+          <button class="btn-shop-mode force-close" id="btnPayModeOrderOnly">📋 สั่งก่อนเท่านั้น<br><span>(บังคับสั่งก่อนจ่ายทีหลัง)</span></button>
+        </div>
+
+        <button class="btn-secondary" id="payModeCancelBtn" style="width: 100%;">ยกเลิก</button>
+      </div>
+    </div>
+
     <!-- SHOP STATE MODAL -->
     <div class="modal-overlay" id="shopStateModal">
       <div class="modal" style="max-width: 480px; text-align: center;">

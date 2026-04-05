@@ -666,23 +666,21 @@ async function deleteCoupon(id) {
 // ============ PAY MODE TOGGLE (Owner only) ============
 function setupPayModeToggle() {
   const btn = document.getElementById('payModeBtn');
-  if (!btn || !isOwner) return;
+  const modal = document.getElementById('payModeModal');
+  if (!btn || !modal || !isOwner) return;
 
   btn.style.display = '';
 
-  const modes = ['both', 'pay_only', 'order_only'];
   const labels = {
-    both: 'ชำระ: ลูกค้าเลือก',
-    pay_only: 'ชำระ: โอนเท่านั้น',
-    order_only: 'ชำระ: สั่งก่อนเท่านั้น'
+    both: '🟢 ชำระ: ลูกค้าเลือก',
+    pay_only: '💳 ชำระ: โอนเท่านั้น',
+    order_only: '📋 ชำระ: สั่งก่อนเท่านั้น'
   };
   const colors = {
     both: { bg: 'rgba(76,175,80,0.15)', color: '#4CAF50', border: '#4CAF50' },
     pay_only: { bg: 'rgba(255,152,0,0.15)', color: '#ff9800', border: '#ff9800' },
     order_only: { bg: 'rgba(79,195,247,0.15)', color: '#4fc3f7', border: '#4fc3f7' }
   };
-
-  let currentMode = 'both';
 
   function updateBtn(mode) {
     btn.textContent = labels[mode] || labels.both;
@@ -693,31 +691,25 @@ function setupPayModeToggle() {
   }
 
   db.collection('settings').doc('shop').onSnapshot(doc => {
-    if (doc.exists && doc.data().payMode) {
-      currentMode = doc.data().payMode;
-    } else {
-      currentMode = 'both';
-    }
-    updateBtn(currentMode);
+    const mode = (doc.exists && doc.data().payMode) ? doc.data().payMode : 'both';
+    updateBtn(mode);
   });
 
-  btn.addEventListener('click', async () => {
-    const nextIndex = (modes.indexOf(currentMode) + 1) % modes.length;
-    const newMode = modes[nextIndex];
-    const descriptions = {
-      both: 'ลูกค้าเลือกได้ทั้ง "โอนเลย" และ "สั่งก่อน"',
-      pay_only: 'บังคับ "โอนเลย" เท่านั้น — ลูกค้าต้องโอนเงินทันที',
-      order_only: 'บังคับ "สั่งก่อน" เท่านั้น — ลูกค้าสั่งก่อนจ่ายทีหลัง'
-    };
-    const yes = await showConfirm(descriptions[newMode], labels[newMode]);
-    if (!yes) return;
+  btn.addEventListener('click', () => modal.classList.add('active'));
+  document.getElementById('payModeCancelBtn').addEventListener('click', () => modal.classList.remove('active'));
 
+  async function setPayMode(newMode) {
+    modal.classList.remove('active');
     try {
       await db.collection('settings').doc('shop').set({ payMode: newMode }, { merge: true });
       showToast('เปลี่ยนโหมดชำระเงินแล้ว');
     } catch (e) {
       showAlert('เปลี่ยนไม่ได้: ' + e.message, 'ผิดพลาด');
     }
-  });
+  }
+
+  document.getElementById('btnPayModeBoth').addEventListener('click', () => setPayMode('both'));
+  document.getElementById('btnPayModePayOnly').addEventListener('click', () => setPayMode('pay_only'));
+  document.getElementById('btnPayModeOrderOnly').addEventListener('click', () => setPayMode('order_only'));
 }
 
