@@ -78,6 +78,48 @@ body {
   overflow-y: auto;
 }
 
+/* ============ TIPS PANEL ============ */
+.tips-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tips-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.tips-packs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tips-pack-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+}
+
+.tips-eq {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ff69b4;
+  margin: 0 4px;
+}
+
+.tips-jin-img {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+}
+
 /* ============ CREDIT PANEL ============ */
 .credit-panel {
   background: linear-gradient(180deg, rgba(45, 27, 105, 0.9), rgba(26, 5, 51, 0.95));
