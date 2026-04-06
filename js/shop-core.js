@@ -422,10 +422,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Pagination
   document.getElementById('prevPageBtn').addEventListener('click', () => {
-    if (currentPage > 1) { currentPage--; renderItems(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    if (currentPage > 1) { currentPage--; renderItems(); }
   });
   document.getElementById('nextPageBtn').addEventListener('click', () => {
-    currentPage++; renderItems(); window.scrollTo({ top: 0, behavior: 'smooth' });
+    currentPage++; renderItems();
   });
 
   // Promo Countdown Loop (function อยู่ global แล้ว)
