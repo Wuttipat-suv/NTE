@@ -20,9 +20,10 @@
 ## ✅ 2. External Admin + Item Visibility
 - Role: `owner` / `admin` / `external` ใน `admin_users`
 - Owner เลือก role ตอนอนุมัติ (modal pickRole) + เปลี่ยนได้ภายหลัง (ปุ่ม "เป็น Admin" / "เป็นภายนอก")
-- External admin: เห็นเฉพาะสินค้าที่มี adminStock ของตัวเอง + order ที่มีสินค้าตัวเอง
+- External admin: เห็นสินค้าที่ owner แชร์ (`sharedWithExternal: true`) + สินค้าที่ตัวเองมี adminStock
+- Owner มีปุ่ม 🔒/🔗 ข้างชื่อสินค้าเพื่อ toggle แชร์กับ external
+- External เพิ่มสินค้า → ไปลง `pending_items` → owner อนุมัติ/ปฏิเสธ
 - ซ่อน: tab ตั้งค่า, shop toggle, pay mode, หมวดหมู่, stock toggles
-- `isMyProduct()` helper ตรวจสอบจาก `adminStock` + `getAdminAliases`
 
 ---
 
@@ -41,7 +42,6 @@
 
 ## ✅ 4. Bug Fix: Bundle/Set Stock Deduction
 **ปัญหา**: สินค้าแบบชุด (bundleQty > 1) สั่ง 6 ชุด แต่หัก stock เพียง 6 ชิ้น แทนที่จะหัก 30 ชิ้น (6×5)
-**สาเหตุ**: cart cache item ไม่มี `bundleQty` (เก่า/stale) ทำให้ `getBundleQty()` return 1
 **แก้ไข**:
 - [x] Checkout transaction: อ่าน `bundleQty` จาก server data แทน cart cache
 - [x] Cart renderCart: sync ข้อมูลล่าสุดจาก items array ทุกครั้ง
@@ -50,41 +50,45 @@
 ---
 
 ## ✅ 5. New Order Notification (Admin)
-**เป้าหมาย**: แอดมินรู้ทันทีเมื่อมี order ใหม่ แม้อยู่ tab อื่น
-- [x] Badge บน tab "Order Board" แสดงจำนวน order ใหม่
-- [x] เสียงแจ้งเตือน (beep 2 โน้ต)
+- [x] Badge บน tab "Order Board" แสดงจำนวน order ใหม่ (เฉพาะ pending)
+- [x] เสียงแจ้งเตือน (beep 2 โน้ต, singleton AudioContext)
 - [x] Badge หายเมื่อกลับมาที่ tab orders
+- [x] Fix: ไม่ notify completed/cancelled orders ตอน refresh
 
 ---
 
 ## ✅ 6. Shop Pagination
-**เป้าหมาย**: แบ่งหน้าสินค้า ไม่ต้อง scroll ยาว
 - [x] 12 items ต่อหน้า + ปุ่ม ก่อนหน้า/ถัดไป
 - [x] Reset หน้า 1 เมื่อเปลี่ยน category
-- [x] Scroll to top เมื่อเปลี่ยนหน้า
+- [x] Item grid มี min-height คงที่ → pagination ไม่กระโดด
 
 ---
 
 ## ✅ 7. Reservation Timer + Admin Reservation Panel
-**เป้าหมาย**: ลูกค้าเห็นเวลาจอง + แอดมินเห็น reservation ทั้งหมด
-
-### สิ่งที่ทำแล้ว
 - [x] เปลี่ยน TTL จาก 15 นาที → 10 นาที
 - [x] ลูกค้า: reserved badge แสดง countdown `"2 จอง (3:42)"` อัปเดตทุกวินาที
 - [x] Admin: reservation panel ใน Order Board แสดงทุก session พร้อม countdown
-- [x] Admin: ชื่อสินค้า resolve จาก `allProducts`, timer สีเปลี่ยนตามความเร่งด่วน
-- [x] Admin: reservation listener มี visibility pause/resume + quota teardown
-- [x] stock กลับมาอัตโนมัติเมื่อหมดเวลาจอง (มีอยู่แล้ว — snapshot filter `expiresAt > now`)
+- [x] Timer สีเปลี่ยนตามความเร่งด่วน (ปกติ → เหลือง → แดงกะพริบ)
 
 ---
 
-## ลำดับแนะนำ
+## ✅ 8. Admin Product Table UI Cleanup
+- [x] ย้ายปุ่ม 🔒/🔗 (แชร์) และ 👁/🚫 (เปิด/ปิด) ไปอยู่ข้างชื่อสินค้าเป็น badge
+- [x] คอลัมน์ "จัดการ" เหลือแค่ ✏️ + 🗑 สะอาดขึ้น
+- [x] ปรับ column widths ให้สมดุล
+
+---
+
+## ลำดับ
 1. ~~หมวดหมู่~~ ✅
 2. ~~รวม Admin Tab~~ ✅
 3. ~~Bug Fixes~~ ✅
-4. ~~External Admin~~ ✅
+4. ~~External Admin + Visibility + Approval~~ ✅
 5. ~~Quota Optimization~~ ✅
 6. ~~Bundle Stock Bug~~ ✅
 7. ~~Order Notification~~ ✅
 8. ~~Shop Pagination~~ ✅
 9. ~~Reservation Timer + Admin Panel~~ ✅
+10. ~~Admin Product Table UI~~ ✅
+
+**ทั้งหมดเสร็จแล้ว** — ไม่มี pending items
