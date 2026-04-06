@@ -2,7 +2,7 @@
 // BubbleShop - Reservation System (จองสินค้า)
 // ============================================
 
-const RESERVATION_TTL = 15 * 60 * 1000; // 15 นาที
+const RESERVATION_TTL = 10 * 60 * 1000; // 10 นาที
 const HEARTBEAT_INTERVAL = 5 * 60 * 1000; // 5 นาที
 const STALE_CLEANUP_THRESHOLD = 30 * 60 * 1000; // 30 นาที
 
@@ -148,6 +148,19 @@ function getReservedQty(itemId) {
     }
   }
   return total;
+}
+
+// คืนเวลาหมดอายุที่เร็วที่สุดของ reservation บน item นี้ (ms) หรือ 0 ถ้าไม่มี
+function getReservationMaxExpiry(itemId) {
+  let maxExp = 0;
+  const now = Date.now();
+  for (const r of _allReservations) {
+    if (r.expiresAt && r.items && r.items[itemId] && r.expiresAt.toMillis() > now) {
+      const exp = r.expiresAt.toMillis();
+      if (exp > maxExp) maxExp = exp;
+    }
+  }
+  return maxExp;
 }
 
 function getAvailableStock(item) {

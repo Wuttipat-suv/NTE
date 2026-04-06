@@ -30,7 +30,7 @@
 **เป้าหมาย**: ลด Firestore quota usage + ปิดร้านอัตโนมัติเมื่อ quota หมด
 
 ### สิ่งที่ทำแล้ว
-- [x] Auto-close shop เมื่อ quota error (`enterQuotaSavingMode` → set `shopState: 'closed'`)
+- [x] Auto-close shop เมื่อ quota error (`enterQuotaSavingMode` → set `shopState: 'force_close'`)
 - [x] รวม `settings/shop` listeners ฝั่ง admin: 3 → 1 (shared listener + callback)
 - [x] Page Visibility: ปิด shop settings listener เมื่อ tab hidden (ทั้ง shop + admin)
 - [x] Orders listener: real-time เฉพาะ `status == 'pending'`, completed/cancelled โหลดครั้งเดียว
@@ -65,32 +65,16 @@
 
 ---
 
-## 🔲 7. Reservation Timer (ลูกค้าเห็นเวลาจอง)
-**เป้าหมาย**: ลูกค้าเห็นว่าสินค้าถูกจองอยู่กี่ชิ้น + เหลือเวลาเท่าไหร่
+## ✅ 7. Reservation Timer + Admin Reservation Panel
+**เป้าหมาย**: ลูกค้าเห็นเวลาจอง + แอดมินเห็น reservation ทั้งหมด
 
-### สิ่งที่ต้องทำ
-- [ ] แสดง countdown timer บน item card ที่มีการจอง
-- [ ] แสดงจำนวน reserved ที่ชัดเจนขึ้น (ตอนนี้มี badge อยู่แล้ว)
-- [ ] หมดเวลาจอง → stock กลับมาอัตโนมัติ (อาจมีอยู่แล้วบางส่วน)
-
-### ไฟล์ที่กระทบ
-- `js/shop-core.js` — render countdown
-- `js/shop-reservation.js` — จัดการ timer
-- `css/style.css` — style countdown
-
----
-
-## 🔲 8. Admin Notification เมื่อมีจอง
-**เป้าหมาย**: แอดมินรู้ทันทีเมื่อลูกค้าจองสินค้า
-
-### สิ่งที่ต้องทำ
-- [ ] แสดง noti/toast ใน admin panel เมื่อมี reservation ใหม่
-- [ ] เสียง/badge notification
-- [ ] อาจเพิ่ม browser notification (ถ้า user อนุญาต)
-
-### ไฟล์ที่กระทบ
-- `js/admin-core.js` หรือ `js/admin-orders.js` — listen reservations
-- `admin.html` — notification UI
+### สิ่งที่ทำแล้ว
+- [x] เปลี่ยน TTL จาก 15 นาที → 10 นาที
+- [x] ลูกค้า: reserved badge แสดง countdown `"2 จอง (3:42)"` อัปเดตทุกวินาที
+- [x] Admin: reservation panel ใน Order Board แสดงทุก session พร้อม countdown
+- [x] Admin: ชื่อสินค้า resolve จาก `allProducts`, timer สีเปลี่ยนตามความเร่งด่วน
+- [x] Admin: reservation listener มี visibility pause/resume + quota teardown
+- [x] stock กลับมาอัตโนมัติเมื่อหมดเวลาจอง (มีอยู่แล้ว — snapshot filter `expiresAt > now`)
 
 ---
 
@@ -103,5 +87,4 @@
 6. ~~Bundle Stock Bug~~ ✅
 7. ~~Order Notification~~ ✅
 8. ~~Shop Pagination~~ ✅
-9. **Reservation Timer** ← ถัดไป
-10. Admin Notification เมื่อมีจอง
+9. ~~Reservation Timer + Admin Panel~~ ✅

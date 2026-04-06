@@ -165,6 +165,7 @@ function setupLogin() {
         loadOrders();
         loadProducts();
         loadBanList();
+        if (typeof loadAdminReservations === 'function') loadAdminReservations();
         listenShopToggle();
         if (typeof setupPayModeToggle === 'function') setupPayModeToggle();
         if (typeof loadCoupons === 'function') loadCoupons();
@@ -564,6 +565,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (typeof unsubPendingAdmins !== 'undefined' && unsubPendingAdmins) { unsubPendingAdmins(); unsubPendingAdmins = null; }
       if (typeof unsubAdminStock !== 'undefined' && unsubAdminStock) { unsubAdminStock(); unsubAdminStock = null; }
       if (typeof unsubShopSettings !== 'undefined' && unsubShopSettings) { unsubShopSettings(); unsubShopSettings = null; }
+      if (typeof unsubAdminReservations !== 'undefined' && unsubAdminReservations) { unsubAdminReservations(); unsubAdminReservations = null; }
     } else {
       if (currentAdminName) {
         if (!unsubOrders) loadOrders();
@@ -572,6 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof unsubBans !== 'undefined' && !unsubBans) loadBanList();
         if (typeof unsubAdmins !== 'undefined' && !unsubAdmins) loadAdminRoles();
         if (typeof unsubShopSettings !== 'undefined' && !unsubShopSettings && typeof listenShopToggle === 'function') listenShopToggle();
+        if (typeof unsubAdminReservations !== 'undefined' && !unsubAdminReservations && typeof loadAdminReservations === 'function') loadAdminReservations();
       }
     }
   });

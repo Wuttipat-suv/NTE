@@ -574,6 +574,58 @@ body {
   border-radius: 10px;
   font-size: 10px;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ============ ADMIN RESERVATION PANEL ============ */
+.admin-reserve-panel {
+  background: rgba(255, 152, 0, 0.08);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+.reserve-header {
+  color: #ff9800;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+.reserve-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 13px;
+}
+.reserve-timer {
+  background: rgba(255, 152, 0, 0.2);
+  color: #ffb74d;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 12px;
+  min-width: 42px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.reserve-items {
+  color: #ccc;
+  font-size: 12px;
+}
+.reserve-warn .reserve-timer {
+  background: rgba(255, 152, 0, 0.35);
+  color: #fff;
+}
+.reserve-urgent .reserve-timer {
+  background: rgba(244, 67, 54, 0.4);
+  color: #ff8a80;
+  animation: reserveBlink 1s ease-in-out infinite;
+}
+@keyframes reserveBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 /* ============ SIDE PANEL (ตะกร้า) ============ */

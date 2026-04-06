@@ -1,3 +1,76 @@
+// ============ ADMIN RESERVATIONS ============
+let unsubAdminReservations = null;
+let _adminReservations = [];
+let _adminReserveInterval = null;
+
+function loadAdminReservations() {
+  if (unsubAdminReservations) { unsubAdminReservations(); unsubAdminReservations = null; }
+
+  unsubAdminReservations = db.collection('reservations').onSnapshot(snapshot => {
+    const now = Date.now();
+    _adminReservations = snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(r => r.expiresAt && r.expiresAt.toMillis() > now);
+    renderAdminReservations();
+  }, e => {
+    console.warn('admin reservation listener:', e.message);
+    if (typeof handleQuotaError === 'function') handleQuotaError(e, 'adminReservations');
+  });
+
+  // อัปเดต countdown ทุกวินาที
+  if (!_adminReserveInterval) {
+    _adminReserveInterval = setInterval(renderAdminReservations, 1000);
+  }
+}
+
+function renderAdminReservations() {
+  const container = document.getElementById('adminReservations');
+  if (!container) return;
+  const now = Date.now();
+
+  // กรอง reservation ที่ยังไม่หมดอายุ
+  const active = _adminReservations.filter(r => r.expiresAt && r.expiresAt.toMillis() > now);
+
+  if (active.length === 0) {
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+
+  // รวม items จากทุก reservation
+  const itemTotals = {};
+  active.forEach(r => {
+    if (!r.items) return;
+    for (const [itemId, qty] of Object.entries(r.items)) {
+      if (!itemTotals[itemId]) itemTotals[itemId] = 0;
+      itemTotals[itemId] += qty;
+    }
+  });
+
+  // สร้าง HTML
+  const rows = active.map(r => {
+    const remain = r.expiresAt.toMillis() - now;
+    const m = Math.floor(remain / 60000);
+    const s = Math.floor((remain % 60000) / 1000).toString().padStart(2, '0');
+    const itemList = r.items ? Object.entries(r.items).map(([id, qty]) => {
+      // หาชื่อสินค้าจาก products cache (ถ้ามี)
+      const product = typeof allProducts !== 'undefined' ? allProducts.find(p => p.id === id) : null;
+      const name = product ? product.name : id.substring(0, 8) + '...';
+      return `${escapeHtml(name)} x${qty}`;
+    }).join(', ') : '-';
+    const urgentClass = remain < 120000 ? ' reserve-urgent' : remain < 300000 ? ' reserve-warn' : '';
+    return `<div class="reserve-row${urgentClass}"><span class="reserve-timer">${m}:${s}</span><span class="reserve-items">${itemList}</span></div>`;
+  }).join('');
+
+  container.style.display = 'block';
+  container.innerHTML = `
+    <div class="admin-reserve-panel">
+      <div class="reserve-header">🛒 สินค้าถูกจอง (${active.length} คน)</div>
+      ${rows}
+    </div>
+  `;
+}
+
 // ============ LOAD ORDERS (Real-time) ============
 let knownOrderIds = new Set();
 let firstLoad = true;

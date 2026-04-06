@@ -227,7 +227,7 @@ function renderItems() {
       <div class="item-card ${outOfStock ? "out-of-stock" : ""}"
            data-id="${item.id}">
         <div class="stock-badge">${bq > 1 ? `${bundleCount} ชุด` : `x${available}`}</div>
-        ${reserved > 0 ? `<div class="reserved-badge">${reserved} จอง</div>` : ""}
+        ${reserved > 0 ? `<div class="reserved-badge" data-reserve-item="${item.id}">${reserved} จอง</div>` : ""}
         <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><rect fill=%22%23333%22 width=%22100%22 height=%22100%22/><text fill=%22%23999%22 x=%2250%22 y=%2255%22 text-anchor=%22middle%22 font-size=%2212%22>No Image</text></svg>'">
         <div class="item-name">${escapeHtml(item.name)}${bq > 1 ? ` <span style="color:#ff9800;font-size:12px;">(ชุดละ ${bq} ชิ้น)</span>` : ''}</div>
         <div class="item-price">
@@ -430,6 +430,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Promo Countdown Loop (function อยู่ global แล้ว)
   setInterval(updatePromoCountdowns, 1000);
+  // Reservation Countdown Loop
+  setInterval(updateReservationCountdowns, 1000);
 
   // Item modal
   document.getElementById("qtyMinus").addEventListener("click", () => {
@@ -872,6 +874,29 @@ function listenShopStatus() {
   if (!_shopStatusInterval) {
     _shopStatusInterval = setInterval(applyShopStatus, 60000);
   }
+}
+
+// ============ RESERVATION COUNTDOWN ============
+function updateReservationCountdowns() {
+  document.querySelectorAll('[data-reserve-item]').forEach(el => {
+    const itemId = el.getAttribute('data-reserve-item');
+    const reserved = typeof getReservedQty === 'function' ? getReservedQty(itemId) : 0;
+    if (reserved <= 0) { el.style.display = 'none'; return; }
+    el.style.display = '';
+    const maxExp = typeof getReservationMaxExpiry === 'function' ? getReservationMaxExpiry(itemId) : 0;
+    if (maxExp > 0) {
+      const remain = maxExp - Date.now();
+      if (remain > 0) {
+        const m = Math.floor(remain / 60000);
+        const s = Math.floor((remain % 60000) / 1000).toString().padStart(2, '0');
+        el.textContent = `${reserved} จอง (${m}:${s})`;
+      } else {
+        el.textContent = `${reserved} จอง`;
+      }
+    } else {
+      el.textContent = `${reserved} จอง`;
+    }
+  });
 }
 
 // ============ TOAST PERSISTENCE ============
