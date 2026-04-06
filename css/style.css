@@ -1119,6 +1119,33 @@ body {
   color: #fff;
 }
 
+/* Product name row with inline badge toggles */
+.product-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: space-between;
+}
+.product-badges {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.badge-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 3px;
+  border-radius: 4px;
+  opacity: 0.8;
+  transition: opacity 0.15s;
+}
+.badge-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .btn-icon-success,
 .btn-icon-cancel,
 .btn-icon-danger {
