@@ -4,6 +4,7 @@ let _adminReservations = [];
 let _adminReserveInterval = null;
 
 function loadAdminReservations() {
+  if (isExternal) return; // external ไม่ต้องเห็นจอง
   if (unsubAdminReservations) { unsubAdminReservations(); unsubAdminReservations = null; }
 
   unsubAdminReservations = db.collection('reservations').onSnapshot(snapshot => {
