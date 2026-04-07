@@ -2,7 +2,7 @@
 // BubbleShop - Reservation System (จองสินค้า)
 // ============================================
 
-const RESERVATION_TTL = 10 * 60 * 1000; // 10 นาที
+const RESERVATION_TTL = 15 * 60 * 1000; // 15 นาที
 const HEARTBEAT_INTERVAL = 5 * 60 * 1000; // 5 นาที
 const STALE_CLEANUP_THRESHOLD = 30 * 60 * 1000; // 30 นาที
 
