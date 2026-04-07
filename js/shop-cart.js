@@ -163,6 +163,20 @@ function renderCart() {
   cartTotalPrice.textContent = formatPrice(total);
   summaryBtn.disabled = false;
 
+  // แสดงเวลาจองที่เหลือ
+  const timerEl = document.getElementById("cartReserveTimer");
+  if (timerEl && typeof getMyReservationRemaining === 'function') {
+    const remaining = getMyReservationRemaining();
+    if (remaining > 0) {
+      const mins = Math.floor(remaining / 60000);
+      const secs = Math.floor((remaining % 60000) / 1000);
+      timerEl.textContent = `ตะกร้าหมดอายุใน ${mins}:${secs.toString().padStart(2, '0')} นาที`;
+      timerEl.style.display = "block";
+    } else {
+      timerEl.style.display = "none";
+    }
+  }
+
   // อัพเดท floating cart badge
   updateFloatingCart();
 }
@@ -181,3 +195,18 @@ function scrollToCart() {
   const panel = document.getElementById("sidePanel");
   if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
 }
+
+// อัปเดต countdown ทุกวินาที
+setInterval(() => {
+  const timerEl = document.getElementById("cartReserveTimer");
+  if (!timerEl || typeof getMyReservationRemaining !== 'function') return;
+  const remaining = getMyReservationRemaining();
+  if (remaining > 0 && Object.keys(cart).length > 0) {
+    const mins = Math.floor(remaining / 60000);
+    const secs = Math.floor((remaining % 60000) / 1000);
+    timerEl.textContent = `ตะกร้าหมดอายุใน ${mins}:${secs.toString().padStart(2, '0')} นาที`;
+    timerEl.style.display = "block";
+  } else {
+    timerEl.style.display = "none";
+  }
+}, 1000);

@@ -8,6 +8,7 @@ const STALE_CLEANUP_THRESHOLD = 30 * 60 * 1000; // 30 นาที
 
 let _heartbeatTimer = null;
 let _reservationExists = false;
+let _reservationExpiresAt = 0; // ms timestamp ที่ reservation จะหมดอายุ
 let _allReservations = []; // [{ sessionId, items, expiresAt }]
 let _syncDebounce = null;
 
@@ -42,6 +43,7 @@ async function _doSync() {
     if (_reservationExists) {
       try { await ref.delete(); } catch (e) { console.warn('reservation delete:', e.message); }
       _reservationExists = false;
+      _reservationExpiresAt = 0;
       _stopHeartbeat();
     }
     // ปิด listener เมื่อ cart ว่าง (ประหยัด quota)
@@ -63,6 +65,7 @@ async function _doSync() {
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     _reservationExists = true;
+    _reservationExpiresAt = Date.now() + RESERVATION_TTL;
     _startHeartbeat();
   } catch (e) {
     console.warn('reservation sync:', e.message);
@@ -161,6 +164,12 @@ function getReservationMaxExpiry(itemId) {
     }
   }
   return maxExp;
+}
+
+// คืนเวลาที่เหลือ (ms) ก่อน reservation ของตัวเองหมดอายุ, 0 ถ้าไม่มี
+function getMyReservationRemaining() {
+  if (!_reservationExists || !_reservationExpiresAt) return 0;
+  return Math.max(0, _reservationExpiresAt - Date.now());
 }
 
 function getAvailableStock(item) {
