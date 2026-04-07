@@ -545,7 +545,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const newPromo = val === '' ? null : parseFloat(val);
       if (val !== '' && (isNaN(newPromo) || newPromo < 0)) return;
 
-      db.collection('pending_actions').doc().set({
+      const docId = 'promo_' + id;
+      db.collection('pending_actions').doc(docId).set({
         type: 'promo_change', itemId: id, itemName,
         newPromo, requestedBy: currentAdminName,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()

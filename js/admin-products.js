@@ -74,7 +74,6 @@ function processProductSnapshot(snapshot) {
 
     tbody.innerHTML = visibleProducts.map((item, index) => {
       const isActive = item.active !== false;
-      const isMine = isExternal ? isMyProduct(item) : true;
       return `
         <tr draggable="true" data-id="${item.id}" style="${!isActive ? 'opacity:0.4;' : ''}">
           <td style="text-align:center;"><span class="drag-handle">☰</span> <span style="color:#e0b0ff;font-weight:600;">${index + 1}</span></td>
@@ -1028,24 +1027,12 @@ async function confirmEditProduct() {
 
 // ============ TOGGLE SHARE WITH EXTERNAL ============
 async function toggleShareExternal(itemId, currentShared) {
-  if (isOwner) {
-    try {
-      await db.collection('items').doc(itemId).update({ sharedWithExternal: !currentShared });
-      showToast(!currentShared ? 'แชร์สินค้าให้แอดมินภายนอกเห็นแล้ว' : 'ยกเลิกแชร์กับแอดมินภายนอกแล้ว');
-    } catch (e) {
-      showAlert('เปลี่ยนสถานะไม่ได้: ' + e.message, 'ผิดพลาด');
-    }
-  } else {
-    // Non-owner → ส่งคำขอ
-    const item = allProducts.find(p => p.id === itemId);
-    try {
-      await db.collection('pending_actions').doc().set({
-        type: 'toggle_share', itemId, itemName: item ? item.name : itemId,
-        newValue: !currentShared, requestedBy: currentAdminName,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      showToast('ส่งคำขอ' + (!currentShared ? 'แชร์' : 'ยกเลิกแชร์') + 'แล้ว รอ owner อนุมัติ');
-    } catch (e) { showAlert('ส่งคำขอไม่ได้: ' + e.message, 'ผิดพลาด'); }
+  // Owner only (ปุ่มแชร์แสดงเฉพาะ owner)
+  try {
+    await db.collection('items').doc(itemId).update({ sharedWithExternal: !currentShared });
+    showToast(!currentShared ? 'แชร์สินค้าให้แอดมินภายนอกเห็นแล้ว' : 'ยกเลิกแชร์กับแอดมินภายนอกแล้ว');
+  } catch (e) {
+    showAlert('เปลี่ยนสถานะไม่ได้: ' + e.message, 'ผิดพลาด');
   }
 }
 
@@ -1059,10 +1046,13 @@ async function toggleItemActive(itemId, currentActive) {
       showAlert('เปลี่ยนสถานะไม่ได้: ' + e.message, 'ผิดพลาด');
     }
   } else {
-    // Non-owner → ส่งคำขอ
+    // Non-owner → ส่งคำขอ (ใช้ itemId เป็น key กัน duplicate)
     const item = allProducts.find(p => p.id === itemId);
     try {
-      await db.collection('pending_actions').doc().set({
+      const docId = 'toggle_active_' + itemId;
+      const existing = await db.collection('pending_actions').doc(docId).get();
+      if (existing.exists) { showToast('คำขอนี้รออนุมัติอยู่แล้ว'); return; }
+      await db.collection('pending_actions').doc(docId).set({
         type: 'toggle_active', itemId, itemName: item ? item.name : itemId,
         newValue: !currentActive, requestedBy: currentAdminName,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1242,7 +1232,8 @@ async function addCategory() {
   } else {
     // Non-owner → ส่งคำขอ
     try {
-      await db.collection('pending_actions').doc().set({
+      const docId = 'cat_' + name.replace(/[^a-zA-Z0-9ก-๙]/g, '_');
+      await db.collection('pending_actions').doc(docId).set({
         type: 'category_add', categoryName: name,
         requestedBy: currentAdminName,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1523,10 +1514,14 @@ function renderPendingItems(docs) {
   `;
 }
 
+let _approvingIds = new Set(); // กัน double-click
+
 async function approvePendingItem(pendingId) {
+  if (_approvingIds.has(pendingId)) return;
+  _approvingIds.add(pendingId);
   try {
     const doc = await db.collection('pending_items').doc(pendingId).get();
-    if (!doc.exists) return;
+    if (!doc.exists) { showToast('คำขอนี้ถูกจัดการแล้ว'); return; }
     const data = doc.data();
     delete data.submittedBy;
 
@@ -1550,6 +1545,8 @@ async function approvePendingItem(pendingId) {
     showToast('อนุมัติสินค้า "' + (data.name || '') + '" แล้ว');
   } catch (e) {
     showAlert('อนุมัติไม่ได้: ' + e.message, 'ผิดพลาด');
+  } finally {
+    _approvingIds.delete(pendingId);
   }
 }
 
@@ -1610,17 +1607,29 @@ function renderPendingDeletes(docs) {
 }
 
 async function approvePendingDelete(pendingDeleteId, itemId) {
+  if (_approvingIds.has(pendingDeleteId)) return;
   if (!await showConfirm('อนุมัติลบสินค้านี้?', 'ยืนยันการลบ')) return;
+  _approvingIds.add(pendingDeleteId);
   try {
-    const historySnap = await db.collection('items').doc(itemId).collection('stockHistory').get();
+    // เช็คว่า pending ยังอยู่
+    const pendingDoc = await db.collection('pending_deletes').doc(pendingDeleteId).get();
+    if (!pendingDoc.exists) { showToast('คำขอนี้ถูกจัดการแล้ว'); return; }
+
     const batch = db.batch();
-    historySnap.docs.forEach(doc => batch.delete(doc.ref));
-    batch.delete(db.collection('items').doc(itemId));
+    // เช็คว่าสินค้ายังอยู่
+    const itemDoc = await db.collection('items').doc(itemId).get();
+    if (itemDoc.exists) {
+      const historySnap = await db.collection('items').doc(itemId).collection('stockHistory').get();
+      historySnap.docs.forEach(doc => batch.delete(doc.ref));
+      batch.delete(db.collection('items').doc(itemId));
+    }
     batch.delete(db.collection('pending_deletes').doc(pendingDeleteId));
     await batch.commit();
-    showToast('ลบสินค้าแล้ว');
+    showToast(itemDoc.exists ? 'ลบสินค้าแล้ว' : 'สินค้าถูกลบไปก่อนแล้ว ลบคำขอแล้ว');
   } catch (e) {
     showAlert('ลบไม่ได้: ' + e.message, 'ผิดพลาด');
+  } finally {
+    _approvingIds.delete(pendingDeleteId);
   }
 }
 
@@ -1698,11 +1707,23 @@ function renderPendingActions(docs) {
 }
 
 async function approvePendingAction(actionId) {
-  const doc = await db.collection('pending_actions').doc(actionId).get();
-  if (!doc.exists) { showToast('ไม่พบคำขอนี้แล้ว'); return; }
-  const d = doc.data();
-
+  if (_approvingIds.has(actionId)) return;
+  _approvingIds.add(actionId);
   try {
+    const doc = await db.collection('pending_actions').doc(actionId).get();
+    if (!doc.exists) { showToast('คำขอนี้ถูกจัดการแล้ว'); return; }
+    const d = doc.data();
+
+    // เช็คว่าสินค้ายังอยู่ (สำหรับ type ที่ต้องอัพเดทสินค้า)
+    if (d.itemId) {
+      const itemDoc = await db.collection('items').doc(d.itemId).get();
+      if (!itemDoc.exists) {
+        await db.collection('pending_actions').doc(actionId).delete();
+        showToast('สินค้า "' + (d.itemName || '') + '" ถูกลบไปแล้ว ลบคำขอแล้ว');
+        return;
+      }
+    }
+
     if (d.type === 'toggle_share') {
       await db.collection('items').doc(d.itemId).update({ sharedWithExternal: d.newValue });
       showToast((d.newValue ? 'แชร์' : 'ยกเลิกแชร์') + ' ' + d.itemName + ' แล้ว');
@@ -1723,7 +1744,6 @@ async function approvePendingAction(actionId) {
       await db.collection('items').doc(d.itemId).update(updateData);
       showToast('ตั้งราคาโปร ' + d.itemName + ' แล้ว');
     } else if (d.type === 'category_add') {
-      // Reload latest categories then add
       const catDoc = await db.collection('settings').doc('categories').get();
       const list = (catDoc.exists && Array.isArray(catDoc.data().list)) ? catDoc.data().list : [];
       if (!list.some(c => c.name === d.categoryName)) {
@@ -1736,6 +1756,8 @@ async function approvePendingAction(actionId) {
     await db.collection('pending_actions').doc(actionId).delete();
   } catch (e) {
     showAlert('อนุมัติไม่ได้: ' + e.message, 'ผิดพลาด');
+  } finally {
+    _approvingIds.delete(actionId);
   }
 }
 
