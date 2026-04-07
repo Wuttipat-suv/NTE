@@ -801,7 +801,7 @@ function applyShopStatus() {
           const m = Math.floor((remain % 3600000) / 60000);
           const s = Math.floor((remain % 60000) / 1000).toString().padStart(2, '0');
           const timeStr = h > 0 ? `${h} ชม. ${m} นาที ${s} วินาที` : `${m} นาที ${s} วินาที`;
-          reasonEl.textContent = `ระบบโควต้าหมด — ร้านจะกลับมาเปิดใน ${timeStr}` + (hrText ? ` (รีเซ็ตทุกวัน ${hrText})` : '');
+          reasonEl.textContent = `ร้านปิดชั่วคราว — จะกลับมาเปิดใน ${timeStr}` + (hrText ? ` (รีเซ็ตทุกวัน ${hrText})` : '');
           reasonEl.style.color = '#ff9800';
         }
       }
