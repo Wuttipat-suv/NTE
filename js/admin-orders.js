@@ -464,41 +464,139 @@ async function resetRevenueSummary() {
   }
 }
 
-// คำนวณยอดขายใหม่จาก completed orders + sync stats doc
+// คำนวณยอดขายใหม่ — เลือก order ได้
 async function recalculateRevenue() {
-  const yes = await showConfirm(
-    'คำนวณยอดขายใหม่จาก completed orders ทั้งหมด?\n(จะอ่าน orders จาก Firestore แล้ว update stats)',
-    'คำนวณยอดใหม่'
-  );
-  if (!yes) return;
-
   try {
-    showToast('กำลังคำนวณ...');
+    showToast('กำลังโหลด orders...');
     const snapshot = await db.collection('orders').get();
-    let totalRevenue = 0;
-    let completedCount = 0;
-
+    const completedOrders = [];
     snapshot.forEach(doc => {
       const order = doc.data();
       if (order.status !== 'completed') return;
-      completedCount++;
-      totalRevenue += Number(order.totalPrice) || 0;
+      completedOrders.push({ id: doc.id, ...order });
     });
 
-    await db.collection('stats').doc('sales').set({
-      completedCount,
-      totalRevenue
+    if (completedOrders.length === 0) {
+      showAlert('ไม่มี completed orders', 'คำนวณยอดใหม่');
+      return;
+    }
+
+    // Sort by createdAt desc
+    completedOrders.sort((a, b) => {
+      const ta = a.createdAt ? a.createdAt.toMillis() : 0;
+      const tb = b.createdAt ? b.createdAt.toMillis() : 0;
+      return tb - ta;
     });
 
-    showAlert(
-      `คำนวณใหม่เสร็จ!\n\nจำนวน completed: ${completedCount}\nยอดรวม: ${totalRevenue.toLocaleString()} บาท`,
-      '✅ คำนวณยอดใหม่'
-    );
+    // สร้าง overlay
+    let overlay = document.getElementById('recalcOverlay');
+    if (overlay) overlay.remove();
+    overlay = document.createElement('div');
+    overlay.id = 'recalcOverlay';
+    overlay.className = 'modal-overlay active';
+    overlay.style.zIndex = '10001';
 
-    // refresh revenue display
-    if (typeof loadOrders === 'function') loadOrders();
+    const totalAll = completedOrders.reduce((s, o) => s + (Number(o.totalPrice) || 0), 0);
+
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:600px;max-height:80vh;display:flex;flex-direction:column;">
+        <h2>🔄 คำนวณยอดใหม่</h2>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0;gap:8px;flex-wrap:wrap;">
+          <label style="font-size:13px;cursor:pointer;">
+            <input type="checkbox" id="recalcSelectAll" checked> เลือกทั้งหมด (${completedOrders.length})
+          </label>
+          <div style="font-size:14px;font-weight:600;" id="recalcTotal">
+            ยอดรวม: <span style="color:#4CAF50;">${totalAll.toLocaleString()}</span> บาท
+          </div>
+        </div>
+        <div style="overflow-y:auto;flex:1;border:1px solid #333;border-radius:8px;padding:4px;margin:8px 0;">
+          ${completedOrders.map((o, i) => {
+            const price = Number(o.totalPrice) || 0;
+            const date = o.createdAt ? new Date(o.createdAt.toMillis()).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+            const items = Array.isArray(o.items) ? o.items.map(it => `${escapeHtml(it.name)} x${it.qty}`).join(', ') : '';
+            return `
+              <label class="recalc-row" style="display:flex;align-items:flex-start;gap:8px;padding:8px;border-bottom:1px solid #222;cursor:pointer;font-size:13px;">
+                <input type="checkbox" class="recalc-cb" data-idx="${i}" data-price="${price}" checked style="margin-top:3px;flex-shrink:0;">
+                <div style="flex:1;min-width:0;">
+                  <div style="display:flex;justify-content:space-between;gap:8px;">
+                    <span style="color:#e0b0ff;font-weight:500;">#${o.orderNumber || o.id}</span>
+                    <span style="color:#aaa;font-size:11px;white-space:nowrap;">${date}</span>
+                  </div>
+                  <div style="color:#aaa;font-size:11px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    ${escapeHtml(o.facebook || '')} · ${items}
+                  </div>
+                </div>
+                <span style="color:#4CAF50;font-weight:600;white-space:nowrap;">${price.toLocaleString()} ฿</span>
+              </label>
+            `;
+          }).join('')}
+        </div>
+        <div class="modal-buttons" style="margin-top:8px;">
+          <button class="btn-secondary" id="recalcCancel">ยกเลิก</button>
+          <button class="btn-primary" id="recalcConfirm" style="width:auto;padding:10px 30px;margin-top:0;">คำนวณ</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    // อัปเดตยอดรวมเมื่อ toggle checkbox
+    function updateTotal() {
+      let sum = 0, count = 0;
+      overlay.querySelectorAll('.recalc-cb').forEach(cb => {
+        if (cb.checked) { sum += Number(cb.dataset.price); count++; }
+      });
+      document.getElementById('recalcTotal').innerHTML =
+        `ยอดรวม: <span style="color:#4CAF50;">${sum.toLocaleString()}</span> บาท (${count} orders)`;
+    }
+
+    overlay.querySelector('#recalcSelectAll').addEventListener('change', function() {
+      overlay.querySelectorAll('.recalc-cb').forEach(cb => cb.checked = this.checked);
+      updateTotal();
+    });
+    overlay.querySelectorAll('.recalc-cb').forEach(cb => cb.addEventListener('change', () => {
+      const all = overlay.querySelectorAll('.recalc-cb');
+      const checked = overlay.querySelectorAll('.recalc-cb:checked');
+      document.getElementById('recalcSelectAll').checked = all.length === checked.length;
+      updateTotal();
+    }));
+
+    // ยกเลิก
+    overlay.querySelector('#recalcCancel').addEventListener('click', () => overlay.remove());
+
+    // ยืนยัน
+    overlay.querySelector('#recalcConfirm').addEventListener('click', async () => {
+      const selected = [];
+      overlay.querySelectorAll('.recalc-cb:checked').forEach(cb => {
+        selected.push(completedOrders[Number(cb.dataset.idx)]);
+      });
+
+      if (selected.length === 0) {
+        showAlert('ไม่ได้เลือก order', 'ผิดพลาด');
+        return;
+      }
+
+      try {
+        let totalRevenue = 0;
+        selected.forEach(o => totalRevenue += Number(o.totalPrice) || 0);
+
+        await db.collection('stats').doc('sales').set({
+          completedCount: selected.length,
+          totalRevenue
+        });
+
+        overlay.remove();
+        showAlert(
+          `คำนวณใหม่เสร็จ!\n\nเลือก: ${selected.length} / ${completedOrders.length} orders\nยอดรวม: ${totalRevenue.toLocaleString()} บาท`,
+          '✅ คำนวณยอดใหม่'
+        );
+        if (typeof loadOrders === 'function') loadOrders();
+      } catch (e) {
+        showAlert('คำนวณไม่ได้: ' + e.message, 'ผิดพลาด');
+      }
+    });
+
   } catch (e) {
-    showAlert('คำนวณไม่ได้: ' + e.message, 'ผิดพลาด');
+    showAlert('โหลด orders ไม่ได้: ' + e.message, 'ผิดพลาด');
   }
 }
 
