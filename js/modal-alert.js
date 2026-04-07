@@ -318,6 +318,7 @@ function enterQuotaSavingMode() {
   }
   // ปิด listener ฝั่ง admin
   if (typeof unsubOrders !== 'undefined' && unsubOrders) { unsubOrders(); unsubOrders = null; }
+  if (typeof unsubCompletedOrders !== 'undefined' && unsubCompletedOrders) { unsubCompletedOrders(); unsubCompletedOrders = null; }
   if (typeof unsubProducts !== 'undefined' && unsubProducts) { unsubProducts(); unsubProducts = null; }
   if (typeof unsubCoupons !== 'undefined' && unsubCoupons) { unsubCoupons(); unsubCoupons = null; }
   if (typeof unsubBans !== 'undefined' && unsubBans) { unsubBans(); unsubBans = null; }
