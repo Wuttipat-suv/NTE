@@ -457,10 +457,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("qtyDisplay").addEventListener("input", () => {
     if (!currentItem) return;
+    const qtyInput = document.getElementById("qtyDisplay");
+    const rawVal = qtyInput.value;
+    // ปล่อยให้ช่องว่างได้ (ยังพิมพ์ไม่เสร็จ)
+    if (rawVal === '') {
+      currentQty = 1;
+      const bq = getBundleQty(currentItem);
+      document.getElementById("modalTotalPrice").textContent =
+        `${formatPrice(getPrice(currentItem) * bq)} บาท`;
+      return;
+    }
     const bq = getBundleQty(currentItem);
     const inCart = cart[currentItem.id] ? cart[currentItem.id].qty : 0;
     const maxQty = getBundleCount(currentItem.stock - inCart * bq, bq);
-    let val = parseInt(document.getElementById("qtyDisplay").value) || 1;
+    let val = parseInt(rawVal) || 1;
     if (val < 1) val = 1;
     if (val > maxQty) val = maxQty;
     currentQty = val;

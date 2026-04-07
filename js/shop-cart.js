@@ -17,7 +17,6 @@ function openItemModal(itemId) {
 
   currentQty = 1;
   const priceUnit = bq > 1 ? 'ชุดละ' : 'ชิ้นละ';
-  const unitPrice = bq;
   document.getElementById("modalItemImg").src = currentItem.image;
   document.getElementById("modalItemName").textContent = currentItem.name + (bq > 1 ? ` (ชุดละ ${bq} ชิ้น)` : '');
   document.getElementById("modalItemPriceUnit").innerHTML =
@@ -28,8 +27,18 @@ function openItemModal(itemId) {
   const stockLabel = bq > 1 ? `เหลือ ${canAddBundles} ชุด` : `เหลือ ${canAddBundles} ชิ้น`;
   document.getElementById("modalStockInfo").textContent =
     stockLabel + (reserved > 0 ? ` (${reserved} ถูกจองโดยคนอื่น)` : '');
-  updateQtyDisplay(canAddBundles);
+  // แสดง input ว่างให้กรอกเอง
+  const qtyInput = document.getElementById("qtyDisplay");
+  qtyInput.value = '';
+  qtyInput.placeholder = '1';
+  qtyInput.max = canAddBundles;
+  const bq2 = getBundleQty(currentItem);
+  document.getElementById("modalTotalPrice").textContent =
+    `${formatPrice(getPrice(currentItem) * bq2)} บาท`;
+  document.getElementById("qtyMinus").disabled = true;
+  document.getElementById("qtyPlus").disabled = currentQty >= canAddBundles;
   document.getElementById("itemModal").classList.add("active");
+  qtyInput.focus();
 }
 
 function updateQtyDisplay(maxQty) {
