@@ -196,17 +196,18 @@ function scrollToCart() {
   if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-// อัปเดต countdown ทุกวินาที
+// อัปเดต countdown ทุกวินาที (ตะกร้า + modal สรุป)
 setInterval(() => {
-  const timerEl = document.getElementById("cartReserveTimer");
-  if (!timerEl || typeof getMyReservationRemaining !== 'function') return;
+  if (typeof getMyReservationRemaining !== 'function') return;
   const remaining = getMyReservationRemaining();
-  if (remaining > 0 && Object.keys(cart).length > 0) {
-    const mins = Math.floor(remaining / 60000);
-    const secs = Math.floor((remaining % 60000) / 1000);
-    timerEl.textContent = `ตะกร้าหมดอายุใน ${mins}:${secs.toString().padStart(2, '0')} นาที`;
-    timerEl.style.display = "block";
-  } else {
-    timerEl.style.display = "none";
-  }
+  const hasItems = Object.keys(cart).length > 0;
+  const text = remaining > 0 && hasItems
+    ? `ตะกร้าหมดอายุใน ${Math.floor(remaining / 60000)}:${Math.floor((remaining % 60000) / 1000).toString().padStart(2, '0')} นาที`
+    : '';
+  ['cartReserveTimer', 'summaryReserveTimer'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (text) { el.textContent = text; el.style.display = 'block'; }
+    else { el.style.display = 'none'; }
+  });
 }, 1000);
