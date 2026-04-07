@@ -84,7 +84,7 @@ function processProductSnapshot(snapshot) {
               <span>${escapeHtml(item.name)}${item.bundleQty > 1 ? ` <span style="color:#ff9800;font-size:11px;">(ชุดละ ${item.bundleQty})</span>` : ''}</span>
               <span class="product-badges">
                 ${isOwner ? `<button class="badge-btn" data-action="toggleShare" data-id="${item.id}" data-shared="${!!item.sharedWithExternal}" title="${item.sharedWithExternal ? 'ยกเลิกแชร์กับภายนอก' : 'แชร์ให้แอดมินภายนอกเห็น'}" style="color:${item.sharedWithExternal ? '#ff9800' : '#555'}">${item.sharedWithExternal ? '🔗' : '🔒'}</button>` : ''}
-                ${isOwner ? `<button class="badge-btn" data-action="toggleActive" data-id="${item.id}" data-active="${isActive}" title="${isActive ? 'ปิดสินค้า' : 'เปิดสินค้า'}" style="color:${isActive ? '#4CAF50' : '#ff4444'}">${isActive ? '👁' : '🚫'}</button>` : `<span style="color:${isActive ? '#4CAF50' : '#ff4444'};font-size:13px;">${isActive ? '👁' : '🚫'}</span>`}
+                ${(isOwner || isExternal) ? `<button class="badge-btn" data-action="toggleActive" data-id="${item.id}" data-active="${isActive}" title="${isActive ? 'ปิดสินค้า' : 'เปิดสินค้า'}" style="color:${isActive ? '#4CAF50' : '#ff4444'}">${isActive ? '👁' : '🚫'}</button>` : `<span style="color:${isActive ? '#4CAF50' : '#ff4444'};font-size:13px;">${isActive ? '👁' : '🚫'}</span>`}
               </span>
             </div>
           </td>
