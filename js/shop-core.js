@@ -667,7 +667,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // History (with debounce)
   const historyFbInput = document.getElementById("historyFbInput");
-  historyFbInput.value = localStorage.getItem("savedFb") || "";
+  historyFbInput.value = "";
   document
     .getElementById("historySearchBtn")
     .addEventListener("click", () => searchHistory(false));
@@ -772,7 +772,9 @@ function applyShopStatus() {
     banner.classList.remove("active");
     grid.style.opacity = "";
     grid.style.pointerEvents = "";
-    if (rightCol) rightCol.style.display = "";
+    // เฉพาะ tab ร้านค้า ถึงจะโชว์ rightColumn
+    const isShopTab = document.querySelector('.nav-tab.active');
+    if (rightCol && isShopTab && isShopTab.dataset.tab === 'shop') rightCol.style.display = "";
     if (hoursEl) hoursEl.style.display = "";
     updateShopHours();
   } else {
