@@ -147,6 +147,11 @@ function setupLogin() {
             quotaEl.addEventListener('click', () => window.open('https://console.firebase.google.com/project/telesrunner-afab6/usage', '_blank'));
           }
         }
+        // ซ่อนปุ่ม owner-only สำหรับ non-owner
+        if (!isOwner) {
+          const catBtn = document.getElementById('manageCategoriesBtn');
+          if (catBtn) catBtn.style.display = 'none';
+        }
         if (isExternal) {
           // external ซ่อน tab ตั้งค่า, ปุ่ม shop toggle, pay mode
           const settingsTab = document.querySelector('[data-tab="settings"]');
@@ -154,9 +159,6 @@ function setupLogin() {
           document.getElementById('shopToggleBtn').style.display = 'none';
           document.getElementById('payModeBtn').style.display = 'none';
           document.querySelectorAll('.owner-only').forEach(el => el.style.display = 'none');
-          // ซ่อนปุ่มจัดการหมวดหมู่ + stock toggles
-          const catBtn = document.getElementById('manageCategoriesBtn');
-          if (catBtn) catBtn.style.display = 'none';
           const stockToggles = document.getElementById('adminStockToggles');
           if (stockToggles) stockToggles.style.display = 'none';
         }
@@ -178,6 +180,7 @@ function setupLogin() {
         if (typeof loadCoupons === 'function') loadCoupons();
         if (typeof loadAdminRoles === 'function') loadAdminRoles();
         if (typeof loadPendingItems === 'function') loadPendingItems();
+        if (typeof loadPendingDeletes === 'function') loadPendingDeletes();
       } catch (err) {
         // Permission Denied แปลว่าไม่ใช่แอดมิน
         console.warn('Not an admin:', err.message);
@@ -546,6 +549,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (rejectBtn) return rejectPendingItem(rejectBtn.dataset.pendingId);
   });
 
+  // Event delegation สำหรับ pending deletes (owner approve/reject)
+  document.getElementById('pendingDeletesPanel').addEventListener('click', (e) => {
+    const approveBtn = e.target.closest('.btn-pending-approve');
+    if (approveBtn) return approvePendingDelete(approveBtn.dataset.deleteId, approveBtn.dataset.itemId);
+    const rejectBtn = e.target.closest('.btn-pending-reject');
+    if (rejectBtn) return rejectPendingDelete(rejectBtn.dataset.deleteId);
+  });
+
   // Event delegation สำหรับ order board
   document.getElementById('orderBoard').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action]');
@@ -584,6 +595,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (typeof unsubShopSettings !== 'undefined' && unsubShopSettings) { unsubShopSettings(); unsubShopSettings = null; }
       if (typeof unsubAdminReservations !== 'undefined' && unsubAdminReservations) { unsubAdminReservations(); unsubAdminReservations = null; }
       if (typeof unsubPendingItems !== 'undefined' && unsubPendingItems) { unsubPendingItems(); unsubPendingItems = null; }
+      if (typeof unsubPendingDeletes !== 'undefined' && unsubPendingDeletes) { unsubPendingDeletes(); unsubPendingDeletes = null; }
     } else {
       if (currentAdminName) {
         if (!unsubOrders) loadOrders();
@@ -594,6 +606,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof unsubShopSettings !== 'undefined' && !unsubShopSettings && typeof listenShopToggle === 'function') listenShopToggle();
         if (typeof unsubAdminReservations !== 'undefined' && !unsubAdminReservations && typeof loadAdminReservations === 'function') loadAdminReservations();
         if (typeof unsubPendingItems !== 'undefined' && !unsubPendingItems && typeof loadPendingItems === 'function') loadPendingItems();
+        if (typeof unsubPendingDeletes !== 'undefined' && !unsubPendingDeletes && typeof loadPendingDeletes === 'function') loadPendingDeletes();
       }
     }
   });

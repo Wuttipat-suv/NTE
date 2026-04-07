@@ -74,12 +74,12 @@ function processProductSnapshot(snapshot) {
               <span>${escapeHtml(item.name)}${item.bundleQty > 1 ? ` <span style="color:#ff9800;font-size:11px;">(ชุดละ ${item.bundleQty})</span>` : ''}</span>
               <span class="product-badges">
                 ${isOwner ? `<button class="badge-btn" data-action="toggleShare" data-id="${item.id}" data-shared="${!!item.sharedWithExternal}" title="${item.sharedWithExternal ? 'ยกเลิกแชร์กับภายนอก' : 'แชร์ให้แอดมินภายนอกเห็น'}" style="color:${item.sharedWithExternal ? '#ff9800' : '#555'}">${item.sharedWithExternal ? '🔗' : '🔒'}</button>` : ''}
-                <button class="badge-btn" data-action="toggleActive" data-id="${item.id}" data-active="${isActive}" title="${isActive ? 'ปิดสินค้า' : 'เปิดสินค้า'}" style="color:${isActive ? '#4CAF50' : '#ff4444'}">${isActive ? '👁' : '🚫'}</button>
+                ${isOwner ? `<button class="badge-btn" data-action="toggleActive" data-id="${item.id}" data-active="${isActive}" title="${isActive ? 'ปิดสินค้า' : 'เปิดสินค้า'}" style="color:${isActive ? '#4CAF50' : '#ff4444'}">${isActive ? '👁' : '🚫'}</button>` : `<span style="color:${isActive ? '#4CAF50' : '#ff4444'};font-size:13px;">${isActive ? '👁' : '🚫'}</span>`}
               </span>
             </div>
           </td>
           <td style="text-align:center;">${formatPrice(item.price)} บาท</td>
-          <td style="text-align:center;"><input type="number" step="any" min="0" class="promo-input" data-action="promo" data-id="${item.id}" value="${item.promoPrice != null ? item.promoPrice : ''}" placeholder="-"></td>
+          <td style="text-align:center;">${isOwner ? `<input type="number" step="any" min="0" class="promo-input" data-action="promo" data-id="${item.id}" value="${item.promoPrice != null ? item.promoPrice : ''}" placeholder="-">` : `<span style="color:#ff9800;">${item.promoPrice != null ? formatPrice(item.promoPrice) : '-'}</span>`}</td>
           <td style="font-weight:600;text-align:center;">${Number(item.stock) || 0}</td>
           <td style="text-align:center;color:#4fc3f7;">${Number(item.soldCount) || 0}</td>
           <td style="text-align:center;"><div class="stock-btn-group"><button class="btn-stock-add" data-action="addStock" data-id="${item.id}" data-name="${escapeHtml(item.name)}">+</button><button class="btn-stock-reduce" data-action="reduceStock" data-id="${item.id}" data-name="${escapeHtml(item.name)}">-</button></div></td>
@@ -893,6 +893,18 @@ function openEditProductModal(itemId, name, price, currentImage) {
   const bqInput = document.getElementById('editBundleQty');
   if (bqInput) bqInput.value = (item && item.bundleQty > 1) ? item.bundleQty : '';
 
+  // ล็อคราคาสำหรับ non-owner
+  const priceInput = document.getElementById('editPrice');
+  if (!isOwner) {
+    priceInput.disabled = true;
+    priceInput.style.opacity = '0.5';
+    priceInput.title = 'เฉพาะ owner แก้ราคาได้';
+  } else {
+    priceInput.disabled = false;
+    priceInput.style.opacity = '';
+    priceInput.title = '';
+  }
+
   const preview = document.getElementById('editImagePreview');
   if (currentImage) {
     preview.src = currentImage;
@@ -919,7 +931,7 @@ async function confirmEditProduct() {
 
   let hasError = false;
   if (!name) { showFieldError('editNameError', 'กรุณากรอกชื่อสินค้า'); hasError = true; }
-  if (isNaN(price) || price <= 0) { showFieldError('editPriceError', 'กรุณากรอกราคา'); hasError = true; }
+  if (isOwner && (isNaN(price) || price <= 0)) { showFieldError('editPriceError', 'กรุณากรอกราคา'); hasError = true; }
   if (!editImageBase64 && !editOriginalImage) { showFieldError('editImageError', 'กรุณาเลือกรูปสินค้า'); hasError = true; }
   if (hasError) return;
 
@@ -929,7 +941,9 @@ async function confirmEditProduct() {
 
   try {
     const bundleQty = parseInt(document.getElementById('editBundleQty').value) || 0;
-    const updateData = { name, price };
+    const updateData = { name };
+    // เฉพาะ owner แก้ราคาได้
+    if (isOwner) updateData.price = price;
     if (bundleQty > 1) {
       updateData.bundleQty = bundleQty;
     } else {
@@ -964,6 +978,7 @@ async function toggleShareExternal(itemId, currentShared) {
 
 // ============ TOGGLE ITEM ACTIVE ============
 async function toggleItemActive(itemId, currentActive) {
+  if (!isOwner) { showToast('เฉพาะ owner เปิด/ปิดสินค้าได้'); return; }
   try {
     await db.collection('items').doc(itemId).update({ active: !currentActive });
     showToast(!currentActive ? 'เปิดสินค้าแล้ว' : 'ปิดสินค้าแล้ว (ลูกค้าจะไม่เห็น)');
@@ -974,18 +989,39 @@ async function toggleItemActive(itemId, currentActive) {
 
 // ============ DELETE PRODUCT ============
 async function deleteProduct(itemId) {
-  const yes = await showConfirm('ต้องการลบสินค้านี้?', 'ยืนยันการลบ');
-  if (!yes) return;
+  const item = allProducts.find(p => p.id === itemId);
+  const itemName = item ? item.name : itemId;
 
-  try {
-    // ลบ stockHistory + item ใน batch เดียว (atomic)
-    const historySnap = await db.collection('items').doc(itemId).collection('stockHistory').get();
-    const batch = db.batch();
-    historySnap.docs.forEach(doc => batch.delete(doc.ref));
-    batch.delete(db.collection('items').doc(itemId));
-    await batch.commit();
-  } catch (e) {
-    showAlert('ลบไม่ได้: ' + e.message, 'ผิดพลาด');
+  if (isOwner) {
+    // Owner ลบได้ตรง
+    const yes = await showConfirm(`ต้องการลบ "${itemName}"?`, 'ยืนยันการลบ');
+    if (!yes) return;
+    try {
+      const historySnap = await db.collection('items').doc(itemId).collection('stockHistory').get();
+      const batch = db.batch();
+      historySnap.docs.forEach(doc => batch.delete(doc.ref));
+      batch.delete(db.collection('items').doc(itemId));
+      await batch.commit();
+      showToast('ลบสินค้าแล้ว');
+    } catch (e) {
+      showAlert('ลบไม่ได้: ' + e.message, 'ผิดพลาด');
+    }
+  } else {
+    // Non-owner → ส่งคำขอลบ รอ owner approve
+    const yes = await showConfirm(`ส่งคำขอลบ "${itemName}" ให้ owner อนุมัติ?`, 'ขอลบสินค้า');
+    if (!yes) return;
+    try {
+      await db.collection('pending_deletes').doc(itemId).set({
+        itemId,
+        itemName,
+        itemImage: item ? item.image : '',
+        requestedBy: currentAdminName,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      showToast('ส่งคำขอลบแล้ว รอ owner อนุมัติ');
+    } catch (e) {
+      showAlert('ส่งคำขอไม่ได้: ' + e.message, 'ผิดพลาด');
+    }
   }
 }
 
@@ -1422,6 +1458,76 @@ async function rejectPendingItem(pendingId) {
   try {
     await db.collection('pending_items').doc(pendingId).delete();
     showToast('ปฏิเสธสินค้าแล้ว');
+  } catch (e) {
+    showAlert('ปฏิเสธไม่ได้: ' + e.message, 'ผิดพลาด');
+  }
+}
+
+// ============ PENDING DELETES (owner approve) ============
+let unsubPendingDeletes = null;
+
+function loadPendingDeletes() {
+  if (!isOwner) return;
+  if (unsubPendingDeletes) { unsubPendingDeletes(); unsubPendingDeletes = null; }
+
+  unsubPendingDeletes = db.collection('pending_deletes').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+    renderPendingDeletes(snapshot.docs);
+  }, e => {
+    console.warn('pending_deletes listener:', e.message);
+  });
+}
+
+function renderPendingDeletes(docs) {
+  const container = document.getElementById('pendingDeletesPanel');
+  if (!container) return;
+
+  if (docs.length === 0) {
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+
+  container.style.display = 'block';
+  container.innerHTML = `
+    <div class="pending-items-header" style="color:#ff4444;">รอลบสินค้า (${docs.length})</div>
+    ${docs.map(doc => {
+      const d = doc.data();
+      return `
+        <div class="pending-item-card" style="border-color:rgba(255,68,68,0.3);">
+          <img src="${escapeHtml(d.itemImage || '')}" class="pending-item-img" onerror="this.style.display='none'">
+          <div class="pending-item-info">
+            <div class="pending-item-name">${escapeHtml(d.itemName || d.itemId)}</div>
+            <div class="pending-item-detail">ขอลบโดย ${escapeHtml(d.requestedBy || '?')}</div>
+          </div>
+          <div class="pending-item-actions">
+            <button class="btn-pending-approve" data-delete-id="${doc.id}" data-item-id="${d.itemId}">อนุมัติลบ</button>
+            <button class="btn-pending-reject" data-delete-id="${doc.id}">ปฏิเสธ</button>
+          </div>
+        </div>
+      `;
+    }).join('')}
+  `;
+}
+
+async function approvePendingDelete(pendingDeleteId, itemId) {
+  if (!await showConfirm('อนุมัติลบสินค้านี้?', 'ยืนยันการลบ')) return;
+  try {
+    const historySnap = await db.collection('items').doc(itemId).collection('stockHistory').get();
+    const batch = db.batch();
+    historySnap.docs.forEach(doc => batch.delete(doc.ref));
+    batch.delete(db.collection('items').doc(itemId));
+    batch.delete(db.collection('pending_deletes').doc(pendingDeleteId));
+    await batch.commit();
+    showToast('ลบสินค้าแล้ว');
+  } catch (e) {
+    showAlert('ลบไม่ได้: ' + e.message, 'ผิดพลาด');
+  }
+}
+
+async function rejectPendingDelete(pendingDeleteId) {
+  try {
+    await db.collection('pending_deletes').doc(pendingDeleteId).delete();
+    showToast('ปฏิเสธคำขอลบแล้ว');
   } catch (e) {
     showAlert('ปฏิเสธไม่ได้: ' + e.message, 'ผิดพลาด');
   }

@@ -326,6 +326,7 @@ function enterQuotaSavingMode() {
   if (typeof unsubShopSettings !== 'undefined' && unsubShopSettings) { unsubShopSettings(); unsubShopSettings = null; }
   if (typeof unsubAdminReservations !== 'undefined' && unsubAdminReservations) { unsubAdminReservations(); unsubAdminReservations = null; }
   if (typeof unsubPendingItems !== 'undefined' && unsubPendingItems) { unsubPendingItems(); unsubPendingItems = null; }
+  if (typeof unsubPendingDeletes !== 'undefined' && unsubPendingDeletes) { unsubPendingDeletes(); unsubPendingDeletes = null; }
 
   // เปลี่ยน quota badge เป็นโหมด error + countdown
   switchQuotaBadgeToError();
