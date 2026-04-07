@@ -310,15 +310,16 @@ async function submitOrder() {
         const subtotal = serverPrice * actualQty;
         rawTotalPrice += subtotal;
 
-        orderItems.push({
+        const oi = {
           itemId: cartItems[i].itemId,
           name: cartItems[i].name,
           price: serverPrice,
           qty: actualQty,
-          bundleQty: serverBq > 1 ? serverBq : undefined,
           bundles: cartItems[i].bundles,
           subtotal,
-        });
+        };
+        if (serverBq > 1) oi.bundleQty = serverBq;
+        orderItems.push(oi);
       }
 
       // คำนวณส่วนลด
