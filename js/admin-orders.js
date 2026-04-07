@@ -227,6 +227,13 @@ async function confirmDeliver() {
       const existingDeliveries = Array.isArray(orderData.deliveries) ? orderData.deliveries : [];
       const newDeliveries = [];
 
+      // === READS FIRST ===
+      const itemDocs = {};
+      for (const di of deliverItems) {
+        itemDocs[di.itemId] = await transaction.get(db.collection('items').doc(di.itemId));
+      }
+
+      // === VALIDATE ===
       for (const di of deliverItems) {
         const totalDelivered = existingDeliveries
           .filter(d => d.itemId === di.itemId)
@@ -236,9 +243,8 @@ async function confirmDeliver() {
 
         if (di.qty > remaining) throw new Error(`${di.name} ส่งได้อีกแค่ ${remaining}`);
 
-        // เช็ค adminStock ของคนส่งไม่ให้ติดลบ
-        const itemDoc = await transaction.get(db.collection('items').doc(di.itemId));
-        if (itemDoc.exists) {
+        const itemDoc = itemDocs[di.itemId];
+        if (itemDoc && itemDoc.exists) {
           const iData = itemDoc.data();
           const myAdminStock = typeof getAdminStockValue === 'function'
             ? getAdminStockValue(iData.adminStock || {}, adminName)
@@ -252,8 +258,10 @@ async function confirmDeliver() {
           by: adminName,
           at: new Date()
         });
+      }
 
-        // บันทึก stockHistory + อัปเดต adminStock
+      // === WRITES ===
+      for (const di of deliverItems) {
         transaction.set(
           db.collection('items').doc(di.itemId).collection('stockHistory').doc(),
           {
