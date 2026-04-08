@@ -380,8 +380,13 @@ async function loadCompletedOrders() {
 let _externalDelayTimer = null;
 
 function processOrderSnapshot(snapshot, board) {
-  // External admin → กรองเฉพาะ order ที่มีสินค้าของตัวเอง + delay pending orders
-  let docs = snapshot.docs;
+  // Dedup: pending + completed อาจมี order ซ้ำ (ช่วง transition)
+  const seenIds = new Set();
+  let docs = snapshot.docs.filter(doc => {
+    if (seenIds.has(doc.id)) return false;
+    seenIds.add(doc.id);
+    return true;
+  });
   let delayedCount = 0;
   let nearestRevealMs = Infinity; // เวลาที่ order ถัดไปจะโผล่
   if (isExternal && typeof isMyProduct === 'function') {

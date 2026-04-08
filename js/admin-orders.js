@@ -310,9 +310,38 @@ async function confirmDeliver() {
       transaction.update(orderRef, updateData);
     });
 
+    // เพิ่ม order เข้า _completedOrders cache ทันที
+    // เพื่อไม่ให้หายตอน onSnapshot ของ pending ลบออก
+    if (typeof _completedOrders !== 'undefined') {
+      const cachedOrder = loadedOrdersCache[orderId];
+      if (cachedOrder) {
+        // อัปเดต cache ให้ตรงกับที่เพิ่งบันทึก
+        cachedOrder.status = cachedOrder.status || 'pending';
+        cachedOrder.deliveries = [...(Array.isArray(cachedOrder.deliveries) ? cachedOrder.deliveries : []),
+          ...deliverItems.map(di => ({ itemId: di.itemId, qty: di.qty, by: adminName, at: new Date() }))];
+        const orderItems = Array.isArray(cachedOrder.items) ? cachedOrder.items : [];
+        const allDel = cachedOrder.deliveries;
+        const fullyDone = orderItems.every(item => {
+          const totalDel = allDel.filter(d => d.itemId === item.itemId).reduce((s, d) => s + d.qty, 0);
+          return totalDel >= item.qty;
+        });
+        if (fullyDone) cachedOrder.status = 'completed';
+
+        // สร้าง doc-like object เพิ่มเข้า _completedOrders
+        const fakeDoc = { id: orderId, data: () => cachedOrder, exists: true };
+        const alreadyExists = _completedOrders.some(d => d.id === orderId);
+        if (!alreadyExists) _completedOrders.unshift(fakeDoc);
+        else {
+          // อัปเดต doc ที่มีอยู่แล้ว
+          const idx = _completedOrders.findIndex(d => d.id === orderId);
+          if (idx >= 0) _completedOrders[idx] = fakeDoc;
+        }
+      }
+    }
+
     closeDeliverModal();
     showToast('บันทึกการส่งของแล้ว');
-    // reload completed orders
+    // reload completed orders จาก server (background)
     if (typeof loadCompletedOrders === 'function') loadCompletedOrders();
   } catch (e) {
     if (isQuotaError(e)) {
@@ -451,7 +480,25 @@ async function cancelOrder(orderId) {
       });
     });
 
+    // เพิ่ม order เข้า _completedOrders cache ทันที (ป้องกันหายจาก board)
+    if (typeof _completedOrders !== 'undefined') {
+      const cachedOrder = loadedOrdersCache[orderId];
+      if (cachedOrder) {
+        cachedOrder.status = 'cancelled';
+        cachedOrder.cancelReason = reason;
+        cachedOrder.cancelledBy = currentAdminName || 'admin';
+        const fakeDoc = { id: orderId, data: () => cachedOrder, exists: true };
+        const alreadyExists = _completedOrders.some(d => d.id === orderId);
+        if (!alreadyExists) _completedOrders.unshift(fakeDoc);
+        else {
+          const idx = _completedOrders.findIndex(d => d.id === orderId);
+          if (idx >= 0) _completedOrders[idx] = fakeDoc;
+        }
+      }
+    }
+
     showToast('ยกเลิก order + คืน stock + คืนคูปองแล้ว');
+    if (typeof loadCompletedOrders === 'function') loadCompletedOrders();
   } catch (e) {
     if (!handleQuotaError(e, 'cancel')) {
       showAlert('ยกเลิกไม่ได้: ' + e.message, 'ผิดพลาด');
