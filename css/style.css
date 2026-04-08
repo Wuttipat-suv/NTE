@@ -478,7 +478,7 @@ body {
 /* ============ ITEM GRID ============ */
 .item-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   min-height: 780px;
   align-content: start;
@@ -526,6 +526,8 @@ body {
   cursor: pointer;
   transition: all 0.2s;
   position: relative;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .item-card:hover {
@@ -568,6 +570,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .item-card .item-price {
@@ -2914,7 +2918,7 @@ body {
   }
 
   .item-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .header {
@@ -2987,7 +2991,7 @@ body {
   }
 
   .item-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
 
@@ -3130,7 +3134,7 @@ body {
 
 @media (max-width: 400px) {
   .item-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
 
