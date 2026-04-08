@@ -10,6 +10,11 @@
   box-sizing: border-box;
 }
 
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 body {
   font-family: 'Kanit', sans-serif;
   background: linear-gradient(135deg, #1a0533 0%, #2d1b69 30%, #4a1a6b 60%, #6b2fa0 100%);
