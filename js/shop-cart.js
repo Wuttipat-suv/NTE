@@ -193,7 +193,15 @@ function updateFloatingCart() {
 
 function scrollToCart() {
   const panel = document.getElementById("sidePanel");
-  if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (!panel) return;
+  // Mobile: toggle แสดง/ซ่อนตะกร้า
+  if (window.matchMedia("(max-width: 768px)").matches) {
+    const isHidden = getComputedStyle(panel).display === 'none';
+    panel.style.display = isHidden ? 'block' : 'none';
+    if (isHidden) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  } else {
+    panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 // อัปเดต countdown ทุกวินาที (ตะกร้า + modal สรุป)
