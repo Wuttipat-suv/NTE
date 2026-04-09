@@ -735,7 +735,12 @@ async function toggleAdminStock(adminName, enabling) {
       `ปิด stock ของ "${adminName}"?\nstock ทุกสินค้าจะลดลงตามจำนวนที่ ${adminName} เพิ่มไว้`,
       'ปิด Stock แอดมิน'
     );
-    if (!yes) return;
+    if (!yes) {
+      // revert toggle กลับเป็น "เปิด" เพราะไม่ได้ปิดจริง
+      const cb = document.querySelector(`[data-admin-toggle="${adminName}"]`);
+      if (cb) cb.checked = true;
+      return;
+    }
 
     const savedAmounts = {};
     const aliases = typeof getAdminAliases === 'function' ? getAdminAliases(adminName) : [adminName];
