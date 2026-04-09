@@ -233,7 +233,7 @@ function renderItems() {
         <div class="item-price">
           ${
             isPromoValid(item)
-              ? `<div class="promo-countdown" data-expires="${item.promoExpiresAt ? item.promoExpiresAt.toMillis() : ""}"></div>
+              ? `${item.promoExpiresAt ? `<div class="promo-countdown" data-expires="${item.promoExpiresAt.toMillis()}"></div>` : '<div class="promo-badge-permanent">โปรโมชั่น</div>'}
                <span class="original-price">${priceUnit} ${formatPrice(item.price * bq)} บาท</span> <span class="promo-price">${priceUnit} ${formatPrice(item.promoPrice * bq)} บาท</span>`
               : `${priceUnit} ${formatPrice(unitPrice)} บาท`
           }

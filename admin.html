@@ -113,44 +113,40 @@
           <div id="pendingDeletesPanel" style="display:none;"></div>
           <div id="pendingActionsPanel" style="display:none;"></div>
           <div id="adminStockToggles" class="admin-stock-toggles" style="display:none;"></div>
-          <div id="ownerStockBackup" style="display:none;flex-direction:column;gap:8px;margin-bottom:10px;background:rgba(76,175,80,0.05);border:1px solid rgba(76,175,80,0.3);border-radius:8px;padding:12px;">
-            <div style="color:#4CAF50;font-size:13px;font-weight:600;">Backup / Restore Stock</div>
-            <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
-              <div style="flex:1;min-width:200px;">
-                <button class="btn-secondary" style="width:100%;padding:8px 12px;font-size:12px;color:#4CAF50;border-color:#4CAF50;" onclick="saveStockSnapshot()">💾 บันทึก Stock ปัจจุบัน</button>
-                <div style="font-size:10px;color:#aaa;margin-top:4px;">เซฟ stock + adminStock ทุกสินค้าไว้ กดเมื่อไหร่ก็ได้</div>
+          <div id="ownerStockBackup" style="display:none;flex-direction:column;gap:10px;margin-bottom:10px;background:rgba(30,30,50,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:14px;">
+            <div style="font-size:13px;font-weight:600;color:#e0e0e0;">จัดการ Stock (Owner)</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <div>
+                <button class="btn-secondary" style="width:100%;padding:8px 12px;font-size:12px;color:#4CAF50;border-color:#4CAF50;" onclick="saveStockSnapshot()">💾 บันทึก Stock</button>
+                <div style="font-size:10px;color:#888;margin-top:3px;">เซฟ stock ทุกสินค้าไว้</div>
               </div>
-              <div style="flex:1;min-width:200px;">
-                <button class="btn-secondary" style="width:100%;padding:8px 12px;font-size:12px;color:#4fc3f7;border-color:#4fc3f7;" onclick="listStockSnapshots()">📋 ดู / โหลด Stock กลับ</button>
-                <div style="font-size:10px;color:#aaa;margin-top:4px;">เลือก snapshot ที่เคยเซฟ แล้วโหลดกลับได้</div>
+              <div>
+                <button class="btn-secondary" style="width:100%;padding:8px 12px;font-size:12px;color:#4fc3f7;border-color:#4fc3f7;" onclick="listStockSnapshots()">📋 โหลด Stock กลับ</button>
+                <div style="font-size:10px;color:#888;margin-top:3px;">เลือก snapshot แล้วโหลดกลับ</div>
               </div>
-            </div>
-            <div id="snapshotInfo" style="font-size:11px;color:#aaa;margin-top:4px;"></div>
-          </div>
-          <div id="ownerStockActions" style="display:none;flex-direction:column;gap:8px;margin-bottom:10px;background:rgba(255,0,0,0.05);border:1px solid rgba(255,68,68,0.3);border-radius:8px;padding:12px;">
-            <div style="color:#ff9800;font-size:13px;font-weight:600;">โซนอันตราย (Owner เท่านั้น)</div>
-            <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
-              <div style="flex:1;min-width:200px;">
-                <button class="btn-secondary" id="clearStockHistoryBtn" style="width:100%;padding:8px 12px;font-size:12px;color:#ff9800;border-color:#ff9800;" onclick="clearAllStockHistory()">ลบ "ประวัติเพิ่ม/ลด" ทั้งหมด</button>
-                <div style="font-size:10px;color:#aaa;margin-top:4px;">ลบแค่ log ประวัติ (ตา 👁️ ในตาราง) — stock จริงไม่เปลี่ยน</div>
+              <div>
+                <button class="btn-secondary" id="clearStockHistoryBtn" style="width:100%;padding:8px 12px;font-size:12px;color:#ff9800;border-color:#ff9800;" onclick="clearAllStockHistory()">🗑 ลบประวัติเพิ่ม/ลด</button>
+                <div style="font-size:10px;color:#888;margin-top:3px;">ลบ log ประวัติ — stock จริงไม่เปลี่ยน</div>
               </div>
-              <div style="flex:1;min-width:200px;">
-                <button class="btn-secondary" style="width:100%;padding:8px 12px;font-size:12px;color:#ff4444;border-color:#ff4444;" onclick="resetAllStockToZero()">รีเซ็ต Stock เป็น 0 ทุกสินค้า</button>
-                <div style="font-size:10px;color:#aaa;margin-top:4px;">stock ทุกตัว = 0, adminStock ว่าง, ประวัติหาย — ใช้ตอนเริ่มรอบใหม่</div>
+              <div>
+                <button class="btn-secondary" style="width:100%;padding:8px 12px;font-size:12px;color:#ff4444;border-color:#ff4444;" onclick="resetAllStockToZero()">⚠️ รีเซ็ต Stock เป็น 0</button>
+                <div style="font-size:10px;color:#888;margin-top:3px;">stock = 0 ทุกตัว, ประวัติหาย</div>
               </div>
             </div>
+            <div id="snapshotInfo" style="font-size:11px;color:#aaa;"></div>
           </div>
+          <div id="ownerStockActions" style="display:none;"></div>
           <div style="overflow-x:auto;">
           <table class="product-table">
             <thead>
               <tr>
                 <th style="width:40px;text-align:center">#</th>
                 <th style="width:60px;text-align:center">รูป</th>
-                <th style="min-width:160px;">ชื่อ</th>
-                <th style="width:80px;text-align:center">ราคา</th>
+                <th style="min-width:160px;cursor:pointer;user-select:none;" onclick="sortProducts('name')">ชื่อ <span id="sortIcon_name"></span></th>
+                <th style="width:80px;text-align:center;cursor:pointer;user-select:none;" onclick="sortProducts('price')">ราคา <span id="sortIcon_price"></span></th>
                 <th style="width:100px;text-align:center">โปรโมชั่น</th>
-                <th style="width:60px;text-align:center">Stock</th>
-                <th style="width:60px;text-align:center">ขายได้</th>
+                <th style="width:60px;text-align:center;cursor:pointer;user-select:none;" onclick="sortProducts('stock')">Stock <span id="sortIcon_stock"></span></th>
+                <th style="width:60px;text-align:center;cursor:pointer;user-select:none;" onclick="sortProducts('soldCount')">ขายได้ <span id="sortIcon_soldCount"></span></th>
                 <th style="width:80px;text-align:center">เพิ่ม/ลด</th>
                 <th style="width:50px;text-align:center">ประวัติ</th>
                 <th style="width:70px;text-align:center">จัดการ</th>

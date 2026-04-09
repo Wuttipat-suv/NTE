@@ -64,7 +64,12 @@ function processProductSnapshot(snapshot) {
       }
     }
 
-    allProducts.sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity));
+    // Sort: ถ้ามี currentSort ใช้ตามนั้น ไม่งั้นใช้ sortOrder เดิม
+    if (currentSortField) {
+      applySortToProducts();
+    } else {
+      allProducts.sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity));
+    }
 
     // External admin: products โหลดแล้ว → re-render orders board (กรณี orders มาก่อน products)
     if (isExternal && typeof _lastPendingSnapshot !== 'undefined' && _lastPendingSnapshot) {
@@ -94,8 +99,8 @@ function processProductSnapshot(snapshot) {
       const isActive = item.active !== false;
       const rowStyle = disabled ? 'opacity:0.35;pointer-events:none;background:rgba(0,0,0,0.2);' : (!isActive ? 'opacity:0.4;' : '');
       return `
-        <tr draggable="${disabled ? 'false' : 'true'}" data-id="${item.id}" style="${rowStyle}">
-          <td style="text-align:center;"><span class="drag-handle">☰</span> <span style="color:#e0b0ff;font-weight:600;">${index + 1}</span></td>
+        <tr data-id="${item.id}" style="${rowStyle}">
+          <td style="text-align:center;"><span style="color:#e0b0ff;font-weight:600;">${index + 1}</span></td>
           <td><img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22><rect fill=%22%23333%22 width=%2250%22 height=%2250%22/></svg>'"></td>
           <td>
             <div class="product-name-row">
@@ -1307,6 +1312,7 @@ async function confirmEditProduct() {
     }
 
     await db.collection('items').doc(editingProductId).update(updateData);
+    showToast('บันทึกสินค้าแล้ว');
 
     // non-owner เปลี่ยนราคา → ส่ง pending_actions
     if (!isOwner && price !== oldPrice && !isNaN(price) && price > 0) {
@@ -1404,68 +1410,54 @@ async function deleteProduct(itemId) {
   }
 }
 
-// ============ DRAG & DROP REORDER ============
-function setupProductDrag() {
-  const tbody = document.getElementById('productTableBody');
+// ============ SORT PRODUCTS ============
+let currentSortField = '';  // '', 'name', 'price', 'stock', 'soldCount'
+let currentSortDir = 'asc'; // 'asc' | 'desc'
 
-  tbody.addEventListener('dragstart', (e) => {
-    const row = e.target.closest('tr[draggable]');
-    if (!row) return;
-    draggedProductId = row.dataset.id;
-    row.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-  });
+function sortProducts(field) {
+  if (currentSortField === field) {
+    // Toggle: desc → asc → reset
+    if (currentSortDir === 'desc') {
+      currentSortDir = 'asc';
+    } else {
+      currentSortField = '';
+      currentSortDir = 'desc';
+    }
+  } else {
+    currentSortField = field;
+    currentSortDir = 'desc';
+  }
+  updateSortIcons();
+  if (_lastProductSnapshot) processProductSnapshot(_lastProductSnapshot);
+}
 
-  tbody.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    const row = e.target.closest('tr[draggable]');
-    if (!row || row.dataset.id === draggedProductId) return;
-    tbody.querySelectorAll('.drag-over').forEach(r => r.classList.remove('drag-over'));
-    row.classList.add('drag-over');
-  });
-
-  tbody.addEventListener('dragleave', (e) => {
-    const row = e.target.closest('tr[draggable]');
-    if (row) row.classList.remove('drag-over');
-  });
-
-  tbody.addEventListener('drop', async (e) => {
-    e.preventDefault();
-    tbody.querySelectorAll('.drag-over, .dragging').forEach(r => r.classList.remove('drag-over', 'dragging'));
-    const targetRow = e.target.closest('tr[draggable]');
-    if (!targetRow || !draggedProductId) return;
-    const targetId = targetRow.dataset.id;
-    if (targetId === draggedProductId) { draggedProductId = null; return; }
-
-    const fromIndex = allProducts.findIndex(p => p.id === draggedProductId);
-    const toIndex = allProducts.findIndex(p => p.id === targetId);
-    if (fromIndex === -1 || toIndex === -1) { draggedProductId = null; return; }
-
-    const [moved] = allProducts.splice(fromIndex, 1);
-    allProducts.splice(toIndex, 0, moved);
-    await saveSortOrder();
-    draggedProductId = null;
-  });
-
-  tbody.addEventListener('dragend', () => {
-    tbody.querySelectorAll('.dragging, .drag-over').forEach(r => r.classList.remove('dragging', 'drag-over'));
-    draggedProductId = null;
+function applySortToProducts() {
+  const dir = currentSortDir === 'asc' ? 1 : -1;
+  const field = currentSortField;
+  allProducts.sort((a, b) => {
+    let va, vb;
+    if (field === 'name') {
+      va = (a.name || '').toLowerCase();
+      vb = (b.name || '').toLowerCase();
+      return va < vb ? -dir : va > vb ? dir : 0;
+    }
+    va = Number(a[field]) || 0;
+    vb = Number(b[field]) || 0;
+    return (va - vb) * dir;
   });
 }
 
-async function saveSortOrder() {
-  try {
-    const batch = db.batch();
-    allProducts.forEach((product, index) => {
-      if (product.sortOrder !== index) {
-        batch.update(db.collection('items').doc(product.id), { sortOrder: index });
-      }
-    });
-    await batch.commit();
-  } catch (e) {
-    showAlert('บันทึกลำดับไม่ได้: ' + e.message, 'ผิดพลาด');
-  }
+function updateSortIcons() {
+  ['name', 'price', 'stock', 'soldCount'].forEach(f => {
+    const el = document.getElementById('sortIcon_' + f);
+    if (!el) return;
+    if (f === currentSortField) {
+      el.textContent = currentSortDir === 'asc' ? '▲' : '▼';
+      el.style.color = '#ff69b4';
+    } else {
+      el.textContent = '';
+    }
+  });
 }
 
 // ============ CATEGORY MANAGEMENT ============
@@ -2052,9 +2044,8 @@ async function approvePendingAction(actionId) {
         updateData.promoExpiresAt = firebase.firestore.FieldValue.delete();
       } else {
         updateData.promoPrice = d.newPromo;
-        if (typeof getNextCloseTime === 'function') {
-          updateData.promoExpiresAt = firebase.firestore.Timestamp.fromDate(getNextCloseTime());
-        }
+        // ไม่ต้องตั้ง expiry — โปรคงอยู่จนกว่า admin จะลบ
+        updateData.promoExpiresAt = firebase.firestore.FieldValue.delete();
       }
       await db.collection('items').doc(d.itemId).update(updateData);
       showToast('ตั้งราคาโปร ' + d.itemName + ' แล้ว');

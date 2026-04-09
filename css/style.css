@@ -1804,6 +1804,12 @@ body {
   font-weight: bold;
   margin-bottom: 5px;
 }
+.promo-badge-permanent {
+  color: #ff9800;
+  font-size: 12px;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
 
 /* ============ FEED LINK BANNER ============ */
 .feed-link {
@@ -2863,18 +2869,12 @@ body {
   cursor: grabbing;
 }
 
-.product-table tbody tr.dragging {
-  opacity: 0.3;
+/* Sort icon in table headers */
+.product-table th[onclick] {
+  transition: color 0.2s;
 }
-
-.product-table tbody tr.drag-over {
-  border-top: 3px solid #ff69b4;
-}
-
-.drag-handle {
-  color: #9b4dca;
-  font-size: 16px;
-  user-select: none;
+.product-table th[onclick]:hover {
+  color: #ff69b4;
 }
 
 /* ============ PASSWORD MODAL ============ */

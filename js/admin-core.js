@@ -11,7 +11,6 @@ let adminAliasMap = {};
 let unsubOrders = null; // เก็บ unsubscribe ป้องกัน duplicate listener
 let unsubProducts = null;
 let allProducts = [];
-let draggedProductId = null;
 let stockMode = 'add'; // 'add' | 'reduce'
 let currentAdminName = '';
 const stockAccum = {}; // { itemId: { total, timer } }
@@ -137,8 +136,6 @@ function setupLogin() {
         if (!isOwner) {
           document.querySelectorAll('.owner-only').forEach(el => el.style.display = 'none');
         } else {
-          const ownerActions = document.getElementById('ownerStockActions');
-          if (ownerActions) ownerActions.style.display = 'flex';
           const ownerBackup = document.getElementById('ownerStockBackup');
           if (ownerBackup) ownerBackup.style.display = 'flex';
           // Owner: quota badge เป็นลิงก์ไป Firebase Console
@@ -372,8 +369,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupImageUploadArea('addImageUploadArea', 'pImage', 'addImagePreview', 'addImageUploadText', (b64) => { addImageBase64 = b64; });
   setupImageUploadArea('editImageUploadArea', 'editImage', 'editImagePreview', 'editImageUploadText', (b64) => { editImageBase64 = b64; });
 
-  setupProductDrag();
-
   document.getElementById('addProductBtn').addEventListener('click', addProduct);
   document.getElementById('openAddProductBtn').addEventListener('click', openAddProductModal);
   document.getElementById('cancelAddProduct').addEventListener('click', closeAddProductModal);
@@ -519,8 +514,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const promo = parseFloat(val);
         if (isNaN(promo) || promo < 0) return;
         updateData.promoPrice = promo;
-        // ตั้งเวลาหมดอายุตรงกับเวลาร้านปิด
-        updateData.promoExpiresAt = firebase.firestore.Timestamp.fromDate(getNextCloseTime());
+        // ไม่ต้องตั้ง expiry — โปรคงอยู่จนกว่า admin จะลบเอง
+        updateData.promoExpiresAt = firebase.firestore.FieldValue.delete();
       }
 
       // เตือนถ้าราคาโปร < externalCut (owner ขาดทุน)
@@ -533,7 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       db.collection('items').doc(id).update(updateData)
-        .then(() => showToast(val === '' ? 'ลบราคาโปรแล้ว' : 'ตั้งราคาโปร ' + val + ' บาท (24 ชม.)'))
+        .then(() => showToast(val === '' ? 'ลบราคาโปรแล้ว' : 'ตั้งราคาโปร ' + val + ' บาท'))
         .catch(err => showAlert('บันทึกไม่ได้: ' + err.message, 'ผิดพลาด'));
     }
 
