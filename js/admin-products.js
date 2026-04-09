@@ -1146,6 +1146,7 @@ async function addProduct() {
       image: addImageBase64,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
+    newItem.sharedWithExternal = true;
     if (bundleQty > 1) newItem.bundleQty = bundleQty;
     if (selectedCats.length > 0) newItem.categories = selectedCats;
     if (stock > 0 && addedBy) {
