@@ -509,6 +509,7 @@ async function cancelOrder(orderId) {
 // ============ REVENUE SUMMARY PER ADMIN ============
 let revenueResetAt = null; // โหลดจาก settings
 let revenueSelectedOrders = null; // ถ้ามี = นับเฉพาะ order เหล่านี้
+let adminRevenueResetAt = {}; // per-admin reset timestamps
 
 function loadRevenueResetDate() {
   return db.collection('settings').doc('revenue').get().then(doc => {
@@ -520,21 +521,51 @@ function loadRevenueResetDate() {
       } else {
         revenueSelectedOrders = null;
       }
+      // per-admin reset
+      if (data.adminResetAt && typeof data.adminResetAt === 'object') {
+        adminRevenueResetAt = {};
+        for (const [name, ts] of Object.entries(data.adminResetAt)) {
+          if (ts && ts.toDate) adminRevenueResetAt[name] = ts.toDate();
+        }
+      }
     }
   }).catch(() => {});
 }
 
 async function resetRevenueSummary() {
-  const yes = await showConfirm('รีเซ็ตสรุปยอดขายแอดมินเป็น 0?\n(order เก่ายังอยู่ แค่ไม่นับยอด)', 'รีเซ็ตยอดขาย');
+  const yes = await showConfirm('รีเซ็ตสรุปยอดขายแอดมิน "ทุกคน" เป็น 0?\n(order เก่ายังอยู่ แค่ไม่นับยอด)', 'รีเซ็ตยอดขายทั้งหมด');
   if (!yes) return;
 
   try {
     await db.collection('settings').doc('revenue').set({
-      resetAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+      resetAt: firebase.firestore.FieldValue.serverTimestamp(),
+      adminResetAt: firebase.firestore.FieldValue.delete()
+    }, { merge: true });
     revenueResetAt = new Date();
     revenueSelectedOrders = null;
-    showToast('รีเซ็ตยอดขายแล้ว');
+    adminRevenueResetAt = {};
+    showToast('รีเซ็ตยอดขายทั้งหมดแล้ว');
+  } catch (e) {
+    showAlert('รีเซ็ตไม่ได้: ' + e.message, 'ผิดพลาด');
+  }
+}
+
+async function resetAdminRevenue(adminName) {
+  const yes = await showConfirm(`รีเซ็ตยอดขายของ "${adminName}" เป็น 0?\n(order เก่ายังอยู่ แค่ไม่นับยอดของคนนี้)`, 'รีเซ็ตยอดขาย');
+  if (!yes) return;
+
+  try {
+    await db.collection('settings').doc('revenue').set({
+      adminResetAt: { [adminName]: firebase.firestore.FieldValue.serverTimestamp() }
+    }, { merge: true });
+    adminRevenueResetAt[adminName] = new Date();
+    showToast(`รีเซ็ตยอด ${adminName} แล้ว`);
+    // re-render
+    if (_lastPendingSnapshot) {
+      const board = document.getElementById('orderBoard');
+      const combined = { docs: [..._lastPendingSnapshot, ..._completedOrders] };
+      processOrderSnapshot(combined, board);
+    }
   } catch (e) {
     showAlert('รีเซ็ตไม่ได้: ' + e.message, 'ผิดพลาด');
   }
@@ -733,13 +764,23 @@ function updateRevenueSummary(orderDocs) {
     const orderTotal = Number(order.totalPrice) || 0;
     totalRevenue += orderTotal;
 
+    const orderDate = order.createdAt ? order.createdAt.toDate() : null;
+
+    // helper: เช็คว่า admin คนนี้ถูก per-admin reset หรือยัง
+    function isAdminReset(adminName) {
+      const perReset = adminRevenueResetAt[adminName];
+      return perReset && orderDate && orderDate < perReset;
+    }
+
     if (deliveries.length === 0) {
       // order เก่าที่ไม่มี delivery record → ใส่ "ไม่ระบุ"
       const who = order.handledBy || 'ไม่ระบุ';
-      adminRevenue[who] = (adminRevenue[who] || 0) + orderTotal;
-      const totalQty = items.reduce((s, i) => s + (i.qty || 0), 0);
-      adminItemCount[who] = (adminItemCount[who] || 0) + totalQty;
-      adminOrderCount[who] = (adminOrderCount[who] || 0) + 1;
+      if (!isAdminReset(who)) {
+        adminRevenue[who] = (adminRevenue[who] || 0) + orderTotal;
+        const totalQty = items.reduce((s, i) => s + (i.qty || 0), 0);
+        adminItemCount[who] = (adminItemCount[who] || 0) + totalQty;
+        adminOrderCount[who] = (adminOrderCount[who] || 0) + 1;
+      }
       return;
     }
 
@@ -750,6 +791,7 @@ function updateRevenueSummary(orderDocs) {
     // กระจายเงินตาม delivery
     const adminsInOrder = new Set();
     deliveries.forEach(del => {
+      if (isAdminReset(del.by)) return; // ข้ามถ้าถูก per-admin reset
       const item = items.find(i => i.itemId === del.itemId);
       if (!item) return;
       const itemPrice = (Number(item.price) || 0) * discountRatio;
@@ -777,7 +819,11 @@ function updateRevenueSummary(orderDocs) {
     if (!revenueSelectedOrders && revenueResetAt && order.createdAt && order.createdAt.toDate() < revenueResetAt) return;
     const items = Array.isArray(order.items) ? order.items : [];
     const deliveries = Array.isArray(order.deliveries) ? order.deliveries : [];
+    const orderDate2 = order.createdAt ? order.createdAt.toDate() : null;
     deliveries.forEach(del => {
+      // ข้ามถ้าถูก per-admin reset
+      const perReset = adminRevenueResetAt[del.by];
+      if (perReset && orderDate2 && orderDate2 < perReset) return;
       const item = items.find(i => i.itemId === del.itemId);
       if (!item) return;
       // หา product จาก allProducts เพื่อเช็ค externalCut
@@ -845,7 +891,10 @@ function updateRevenueSummary(orderDocs) {
                   </div>
                   <div class="rev-card-stats">${adminItemCount[name] || 0} ชิ้น · ${adminOrderCount[name] || 0} orders · ${pct}%</div>
                 </div>
-                <div class="rev-card-amount">${formatPrice(Math.round(netRev))} ฿${comText}</div>
+                <div class="rev-card-amount">
+                  ${formatPrice(Math.round(netRev))} ฿${comText}
+                  <button onclick="resetAdminRevenue('${escapeHtml(name)}')" style="display:block;margin-top:4px;background:none;border:1px solid #ff9800;color:#ff9800;border-radius:4px;font-size:10px;padding:2px 6px;cursor:pointer;font-family:inherit;">รีเซ็ต</button>
+                </div>
               </div>
             `;
           }).join('')}
