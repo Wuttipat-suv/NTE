@@ -113,9 +113,18 @@
           <div id="pendingDeletesPanel" style="display:none;"></div>
           <div id="pendingActionsPanel" style="display:none;"></div>
           <div id="adminStockToggles" class="admin-stock-toggles" style="display:none;"></div>
-          <div id="ownerStockActions" style="display:none;justify-content:flex-end;gap:8px;margin-bottom:10px;">
-            <button class="btn-secondary" id="clearStockHistoryBtn" style="width:auto;padding:8px 16px;font-size:12px;color:#ff9800;border-color:#ff9800;" onclick="clearAllStockHistory()">เคลียร์ประวัติ Stock ทั้งหมด</button>
-            <button class="btn-secondary" style="width:auto;padding:8px 16px;font-size:12px;color:#ff4444;border-color:#ff4444;" onclick="resetAllStockToZero()">รีเซ็ต Stock ทั้งหมดเป็น 0</button>
+          <div id="ownerStockActions" style="display:none;flex-direction:column;gap:8px;margin-bottom:10px;background:rgba(255,0,0,0.05);border:1px solid rgba(255,68,68,0.3);border-radius:8px;padding:12px;">
+            <div style="color:#ff9800;font-size:13px;font-weight:600;">โซนอันตราย (Owner เท่านั้น)</div>
+            <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
+              <div style="flex:1;min-width:200px;">
+                <button class="btn-secondary" id="clearStockHistoryBtn" style="width:100%;padding:8px 12px;font-size:12px;color:#ff9800;border-color:#ff9800;" onclick="clearAllStockHistory()">ลบ "ประวัติเพิ่ม/ลด" ทั้งหมด</button>
+                <div style="font-size:10px;color:#aaa;margin-top:4px;">ลบแค่ log ประวัติ (ตา 👁️ ในตาราง) — stock จริงไม่เปลี่ยน</div>
+              </div>
+              <div style="flex:1;min-width:200px;">
+                <button class="btn-secondary" style="width:100%;padding:8px 12px;font-size:12px;color:#ff4444;border-color:#ff4444;" onclick="resetAllStockToZero()">รีเซ็ต Stock เป็น 0 ทุกสินค้า</button>
+                <div style="font-size:10px;color:#aaa;margin-top:4px;">stock ทุกตัว = 0, adminStock ว่าง, ประวัติหาย — ใช้ตอนเริ่มรอบใหม่</div>
+              </div>
+            </div>
           </div>
           <div style="overflow-x:auto;">
           <table class="product-table">

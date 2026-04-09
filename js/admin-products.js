@@ -526,10 +526,17 @@ function closeStockHistory() {
 // ============ CLEAR ALL STOCK HISTORY ============
 async function clearAllStockHistory() {
   const yes = await showConfirm(
-    'ลบประวัติ Stock ทั้งหมดทุกสินค้า?\nจะเริ่มนับใหม่จาก 0 (stock จริงไม่เปลี่ยน)',
-    'เคลียร์ประวัติ Stock'
+    'ลบ "ประวัติการเพิ่ม/ลด stock" ทุกสินค้า\n\n' +
+    '• จำนวน stock จริง → ไม่เปลี่ยน\n' +
+    '• adminStock ของแต่ละคน → ไม่เปลี่ยน\n' +
+    '• log ที่เห็นตอนกด 👁️ → จะหายหมด\n\n' +
+    '⚠️ ลบแล้วกู้คืนไม่ได้!',
+    'ลบประวัติเพิ่ม/ลด Stock'
   );
   if (!yes) return;
+
+  const doubleCheck = await showConfirm('ยืนยันอีกครั้ง — ประวัติ Stock ทั้งหมดจะหายถาวร!', 'ยืนยันครั้งสุดท้าย');
+  if (!doubleCheck) return;
 
   const btn = document.getElementById('clearStockHistoryBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'กำลังลบ...'; }
@@ -563,8 +570,12 @@ async function clearAllStockHistory() {
 // ============ RESET ALL STOCK TO ZERO ============
 async function resetAllStockToZero() {
   const yes = await showConfirm(
-    'รีเซ็ต stock ทุกสินค้าเป็น 0\nรวมถึง adminStock และประวัติ Stock ทั้งหมด\n\nยืนยัน?',
-    'รีเซ็ต Stock ทั้งหมด'
+    'รีเซ็ต Stock ทุกสินค้าเป็น 0\n\n' +
+    '• stock ทุกตัว → เป็น 0\n' +
+    '• adminStock ทุกคน → ว่างหมด\n' +
+    '• ประวัติเพิ่ม/ลด → หายหมด\n\n' +
+    '⚠️ ใช้ตอนเริ่มรอบใหม่เท่านั้น!\nกู้คืนไม่ได้!',
+    'รีเซ็ต Stock ทั้งหมดเป็น 0'
   );
   if (!yes) return;
 
