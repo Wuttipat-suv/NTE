@@ -632,6 +632,11 @@ function renderAdminStockToggles() {
   function processAdminStockDoc(doc) {
     disabledAdminsCache = (doc.exists && doc.data().disabled) ? doc.data().disabled : {};
 
+    // หาแอดมินที่ถูกลบจากระบบแล้ว แต่ยัง disabled อยู่ใน settings
+    const orphanedAdmins = Object.keys(disabledAdminsCache).filter(name =>
+      !visibleAdmins.includes(name) && Object.keys(disabledAdminsCache[name]).length > 0
+    );
+
     container.style.display = 'block';
     container.innerHTML = `
       <div class="admin-stock-toggles-title">เปิด/ปิด Stock แอดมิน</div>
@@ -649,6 +654,20 @@ function renderAdminStockToggles() {
           `;
         }).join('')}
       </div>
+      ${isOwner && orphanedAdmins.length > 0 ? `
+        <div style="margin-top:8px;padding:8px;background:rgba(255,152,0,0.1);border:1px solid rgba(255,152,0,0.3);border-radius:6px;">
+          <div style="font-size:11px;color:#ff9800;margin-bottom:6px;">แอดมินที่ถูกลบแล้ว (stock ยังถูกปิดอยู่):</div>
+          ${orphanedAdmins.map(name => `
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;">
+              <span style="font-size:12px;color:#aaa;">${escapeHtml(name)}</span>
+              <div style="display:flex;gap:4px;">
+                <button class="btn-table secondary" data-action="restoreOrphan" data-name="${escapeHtml(name)}" style="font-size:10px;padding:2px 8px;">คืน stock แล้วลบ</button>
+                <button class="btn-table" data-action="removeOrphan" data-name="${escapeHtml(name)}" style="font-size:10px;padding:2px 8px;color:#ff4444;border-color:#ff4444;">ลบทิ้ง (ไม่คืน)</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
     `;
 
     // Bind toggle events
@@ -658,6 +677,34 @@ function renderAdminStockToggles() {
         const enabling = e.target.checked;
         e.target.disabled = true;
         toggleAdminStock(name, enabling).finally(() => { e.target.disabled = false; });
+      });
+    });
+
+    // Bind orphan buttons (แอดมินที่ถูกลบแล้ว)
+    container.querySelectorAll('[data-action="restoreOrphan"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const name = btn.dataset.name;
+        btn.disabled = true;
+        try {
+          await toggleAdminStock(name, true); // คืน stock
+          showToast(`คืน stock ของ ${name} แล้ว`);
+        } catch (e) { showAlert('คืนไม่ได้: ' + e.message, 'ผิดพลาด'); }
+        btn.disabled = false;
+      });
+    });
+    container.querySelectorAll('[data-action="removeOrphan"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const name = btn.dataset.name;
+        const yes = await showConfirm(`ลบ "${name}" ออกจากรายการ?\nstock ที่ถูกปิดจะหายไป (ไม่คืน)`, 'ยืนยัน');
+        if (!yes) return;
+        btn.disabled = true;
+        try {
+          await db.collection('settings').doc('adminStock').set({
+            disabled: { [name]: firebase.firestore.FieldValue.delete() }
+          }, { merge: true });
+          showToast(`ลบ ${name} ออกแล้ว`);
+        } catch (e) { showAlert('ลบไม่ได้: ' + e.message, 'ผิดพลาด'); }
+        btn.disabled = false;
       });
     });
   }
