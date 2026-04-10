@@ -271,9 +271,7 @@ function renderItems() {
             isPromoValid(item)
               ? `${item.promoExpiresAt
                   ? `<div class="promo-countdown" data-expires="${item.promoExpiresAt.toMillis()}"></div>`
-                  : (currentShopState === 'force_open'
-                    ? '<div class="promo-badge-permanent">โปรโมชั่น</div>'
-                    : `<div class="promo-countdown" data-expires="${getNextCloseTimestamp()}"></div>`)}
+                  : `<div class="promo-countdown" data-expires="${getNextCloseTimestamp()}"></div>`}
                <span class="original-price">${priceUnit} ${formatPrice(item.price * bq)} บาท</span> <span class="promo-price">${priceUnit} ${formatPrice(item.promoPrice * bq)} บาท</span>`
               : `${priceUnit} ${formatPrice(unitPrice)} บาท`
           }
