@@ -345,6 +345,15 @@ async function confirmDeliver() {
           const idx = _completedOrders.findIndex(d => d.id === orderId);
           if (idx >= 0) _completedOrders[idx] = fakeDoc;
         }
+        // render ทันทีหลังเพิ่ม fakeDoc — ป้องกัน order หายเพราะ onSnapshot ยิง
+        // ก่อน fakeDoc ถูกเพิ่ม (Firestore SDK fire local snapshot ระหว่าง transaction)
+        if (_lastPendingSnapshot) {
+          const board = document.getElementById('orderBoard');
+          if (board && typeof processOrderSnapshot === 'function') {
+            const combined = { docs: [..._lastPendingSnapshot, ..._completedOrders] };
+            processOrderSnapshot(combined, board);
+          }
+        }
       }
     }
 
@@ -528,6 +537,14 @@ async function cancelOrder(orderId) {
         else {
           const idx = _completedOrders.findIndex(d => d.id === orderId);
           if (idx >= 0) _completedOrders[idx] = fakeDoc;
+        }
+        // render ทันที — ป้องกัน order หายจาก board
+        if (_lastPendingSnapshot) {
+          const board = document.getElementById('orderBoard');
+          if (board && typeof processOrderSnapshot === 'function') {
+            const combined = { docs: [..._lastPendingSnapshot, ..._completedOrders] };
+            processOrderSnapshot(combined, board);
+          }
         }
       }
     }
