@@ -899,6 +899,142 @@ async function _doToggleAdminStock(adminName, enabling) {
 }
 
 
+// ============ WIPE ADMIN STOCK (ล้าง stock แอดมินรายคน) ============
+function wipeAdminStockPicker() {
+  if (!adminNames || adminNames.length === 0) {
+    showAlert('ยังไม่มีข้อมูลแอดมิน', 'ผิดพลาด');
+    return;
+  }
+  let overlay = document.getElementById('wipeAdminOverlay');
+  if (overlay) overlay.remove();
+  overlay = document.createElement('div');
+  overlay.id = 'wipeAdminOverlay';
+  overlay.className = 'modal-overlay active';
+  overlay.style.zIndex = '10001';
+
+  const rows = adminNames.map(name => `
+    <button class="btn-secondary" data-wipe-admin="${escapeHtml(name)}"
+      style="width:100%;padding:10px;font-size:13px;text-align:left;margin-bottom:6px;">
+      🧹 ${escapeHtml(name)}
+    </button>
+  `).join('');
+
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:400px;">
+      <h2>ล้าง stock แอดมิน</h2>
+      <p style="font-size:12px;color:#aaa;margin-bottom:12px;">เลือกแอดมินที่ต้องการล้าง stock<br>→ adminStock = 0 ทุกสินค้า + หัก stock รวม + ลบประวัติ</p>
+      <div>${rows}</div>
+      <div class="modal-buttons" style="margin-top:10px;">
+        <button class="btn-secondary" id="wipeAdminClose">ปิด</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#wipeAdminClose').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-wipe-admin]');
+    if (!btn) return;
+    overlay.remove();
+    await wipeAdminStock(btn.dataset.wipeAdmin);
+  });
+}
+
+async function wipeAdminStock(adminName) {
+  const yes = await showConfirm(
+    `ล้าง stock ของ "${adminName}" ทุกสินค้า?\n\n` +
+    '• adminStock ของคนนี้จะเป็น 0\n' +
+    '• stock รวมจะถูกหักตามจำนวน\n' +
+    '• ประวัติเพิ่ม/ลดของคนนี้จะถูกลบ\n\n' +
+    '⚠️ แนะนำ: เซฟ snapshot ก่อน',
+    'ล้าง Stock แอดมิน'
+  );
+  if (!yes) return;
+
+  const doubleCheck = await showConfirm(
+    `ยืนยันอีกครั้ง — ล้าง stock ของ "${adminName}" ทั้งหมด!`,
+    'ยืนยันครั้งสุดท้าย'
+  );
+  if (!doubleCheck) return;
+
+  try {
+    showToast('กำลังล้าง stock ' + adminName + '...');
+    const aliases = typeof getAdminAliases === 'function' ? getAdminAliases(adminName) : [adminName];
+
+    // อ่านสินค้าทั้งหมด
+    const snap = await db.collection('items').get();
+    let totalDeducted = 0;
+    let itemCount = 0;
+    let historyDeleted = 0;
+
+    for (let i = 0; i < snap.docs.length; i += 249) {
+      const batch = db.batch();
+      const chunk = snap.docs.slice(i, i + 249);
+
+      for (const doc of chunk) {
+        const data = doc.data();
+        const adminStockMap = data.adminStock || {};
+        let adminQty = 0;
+        const keysToDelete = [];
+
+        for (const alias of aliases) {
+          const val = typeof getAdminStockValue === 'function'
+            ? getAdminStockValue(adminStockMap, alias)
+            : (Number(adminStockMap[alias]) || 0);
+          if (val > 0) {
+            adminQty += val;
+            keysToDelete.push(alias);
+          }
+          // เคลียร์ key แม้ว่าจะเป็น 0 ด้วย (ลบ key ออก)
+          if (adminStockMap[alias] !== undefined) keysToDelete.push(alias);
+        }
+
+        if (keysToDelete.length > 0 || adminQty > 0) {
+          const currentStock = Math.max(0, Number(data.stock) || 0);
+          const deduct = Math.min(adminQty, currentStock);
+          const updateData = {};
+          if (deduct > 0) {
+            updateData.stock = firebase.firestore.FieldValue.increment(-deduct);
+            totalDeducted += deduct;
+          }
+          // ลบ key ของแอดมินนี้ออกจาก adminStock
+          const uniqueKeys = [...new Set(keysToDelete)];
+          for (const k of uniqueKeys) {
+            updateData['adminStock.' + k] = firebase.firestore.FieldValue.delete();
+          }
+          if (Object.keys(updateData).length > 0) {
+            batch.update(doc.ref, updateData);
+            itemCount++;
+          }
+        }
+      }
+      await batch.commit();
+    }
+
+    // ลบ stockHistory ของแอดมินนี้ทุกสินค้า
+    for (const doc of snap.docs) {
+      const histSnap = await doc.ref.collection('stockHistory')
+        .where('addedBy', 'in', aliases.slice(0, 10))
+        .get();
+      if (!histSnap.empty) {
+        const histBatch = db.batch();
+        histSnap.docs.forEach(h => { histBatch.delete(h.ref); historyDeleted++; });
+        await histBatch.commit();
+      }
+    }
+
+    showAlert(
+      `ล้าง stock "${adminName}" เสร็จ!\n\n` +
+      `• หัก stock รวม: ${totalDeducted} ชิ้น (${itemCount} สินค้า)\n` +
+      `• ลบประวัติ: ${historyDeleted} รายการ\n` +
+      `• adminStock.${adminName} = ลบออกแล้ว`,
+      'ล้าง Stock สำเร็จ'
+    );
+  } catch (e) {
+    showAlert('ล้างไม่ได้: ' + e.message, 'ผิดพลาด');
+  }
+}
+
 // ============ STOCK SNAPSHOT (BACKUP / RESTORE) ============
 async function saveStockSnapshot() {
   const yes = await showConfirm(
