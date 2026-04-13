@@ -12,45 +12,46 @@ function isPromoValid(item) {
   if (item.promoExpiresAt && Date.now() < item.promoExpiresAt.toMillis()) {
     return true; // ยังไม่หมด expiry ที่ตั้งไว้
   }
-  // ไม่มี expiry หรือ expiry หมดแล้ว → โปรอิงเวลา auto schedule เสมอ
+  // ไม่มี expiry หรือ expiry หมดแล้ว
+  if (currentShopState === 'force_open') return true; // เปิดตลอด → โปรขึ้นเสมอ + countdown อิง auto
   return isWithinShopHours();
 }
 function getPrice(item) {
   return isPromoValid(item) ? Number(item.promoPrice) : Number(item.price);
 }
 
-// คำนวณ timestamp ที่ร้านจะปิด (สำหรับ countdown โปร)
+// คำนวณ timestamp ที่ร้านจะปิดถัดไป (สำหรับ countdown โปร)
+// รองรับทั้งในเวลาและนอกเวลา auto — return เวลาอนาคตเสมอ
 function getNextCloseTimestamp() {
   const now = new Date();
-  const day = now.getDay();
-  const isWeekend = day === 0 || day === 6;
   const config = _shopHoursConfig || { weekday: { open: '20:00', close: '01:00' }, weekend: { open: '10:00', close: '23:59' } };
-  const sched = isWeekend ? config.weekend : config.weekday;
-  const closeParts = (sched.close || '01:00').split(':');
-  const openParts = (sched.open || '20:00').split(':');
-  const closeMin = parseInt(closeParts[0]) * 60 + parseInt(closeParts[1] || 0);
-  const openMin = parseInt(openParts[0]) * 60 + parseInt(openParts[1] || 0);
 
-  const closeDate = new Date(now);
-  closeDate.setSeconds(0, 0);
-  closeDate.setHours(parseInt(closeParts[0]), parseInt(closeParts[1] || 0));
+  for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+    const base = new Date(now);
+    base.setDate(base.getDate() + dayOffset);
+    base.setHours(0, 0, 0, 0);
+    const day = base.getDay();
+    const isWeekend = day === 0 || day === 6;
+    const sched = isWeekend ? config.weekend : config.weekday;
+    const closeParts = (sched.close || '01:00').split(':');
+    const openParts = (sched.open || '20:00').split(':');
+    const closeMin = parseInt(closeParts[0]) * 60 + parseInt(closeParts[1] || 0);
+    const openMin = parseInt(openParts[0]) * 60 + parseInt(openParts[1] || 0);
 
-  if (closeMin > openMin) {
-    // ปิดวันเดียวกัน (เช่น 10:00 - 23:59)
-    if (closeDate.getTime() <= now.getTime()) {
-      // ปิดไปแล้ว → วันพรุ่งนี้
+    const closeDate = new Date(base);
+    closeDate.setHours(parseInt(closeParts[0]), parseInt(closeParts[1] || 0), 0, 0);
+
+    if (closeMin <= openMin) {
+      // ข้ามวัน (เช่น 16:00-00:00) → ปิดวันถัดไป
       closeDate.setDate(closeDate.getDate() + 1);
     }
-  } else {
-    // ข้ามวัน (เช่น 20:00 - 01:00)
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    if (nowMin >= openMin) {
-      // อยู่ช่วงหลังเปิด → ปิดวันพรุ่งนี้
-      closeDate.setDate(closeDate.getDate() + 1);
+
+    if (closeDate.getTime() > now.getTime()) {
+      return closeDate.getTime();
     }
-    // ถ้า nowMin < closeMin → ปิดวันนี้ (ไม่ต้องเปลี่ยน)
   }
-  return closeDate.getTime();
+  // fallback: 24 ชม.
+  return now.getTime() + 86400000;
 }
 
 // Promo Countdown — global function เรียกได้จากทุกที่
