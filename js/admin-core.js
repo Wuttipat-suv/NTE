@@ -605,6 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (action === 'stockHistory') openStockHistory(id, name);
     else if (action === 'toggleShare') toggleShareExternal(id, btn.dataset.shared === 'true');
     else if (action === 'toggleActive') toggleItemActive(id, btn.dataset.active === 'true');
+    else if (action === 'toggleMyStock') toggleMyStock(id);
     else if (action === 'edit') openEditProductModal(id, name, Number(price), image);
     else if (action === 'delete') deleteProduct(id);
   });

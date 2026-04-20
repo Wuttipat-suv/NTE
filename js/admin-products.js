@@ -9,11 +9,13 @@ function isMyProduct(item) {
   if (!currentAdminName) return false;
   // 1) owner แชร์ให้ external เห็น
   if (item.sharedWithExternal) return true;
-  // 2) ตัวเองมี adminStock > 0
+  // 2) ตัวเองมี adminStock > 0 หรือ adminClosedStock > 0 (ปิด stock ตัวเองไว้)
   const aliases = typeof getAdminAliases === 'function' ? getAdminAliases(currentAdminName) : [currentAdminName];
   const adminStockMap = item.adminStock || {};
+  const closedMap = item.adminClosedStock || {};
   for (const alias of aliases) {
     if (getAdminStockValue(adminStockMap, alias) > 0) return true;
+    if ((Number(closedMap[alias]) || 0) > 0) return true;
   }
   return false;
 }
@@ -116,8 +118,20 @@ function processProductSnapshot(snapshot) {
         promoExtra = `<div style="font-size:10px;color:#4CAF50;margin-top:2px;">คุณได้ ${formatPrice(ec)} ฿</div>`;
       }
       const shareBtn = isOwner ? `<button class="badge-btn" data-action="toggleShare" data-id="${item.id}" data-shared="${!!item.sharedWithExternal}" title="${item.sharedWithExternal ? 'ยกเลิกแชร์กับภายนอก' : 'แชร์ให้แอดมินภายนอกเห็น'}" style="color:${item.sharedWithExternal ? '#ff9800' : '#555'}">${item.sharedWithExternal ? '🔗' : '🔒'}</button>` : '';
-      const canToggleActive = isOwner || isMyProduct(item);
-      const activeBtn = canToggleActive ? `<button class="badge-btn" data-action="toggleActive" data-id="${item.id}" data-active="${isActive}" title="${isActive ? 'ปิดสินค้า' : 'เปิดสินค้า'}" style="color:${isActive ? '#4CAF50' : '#ff4444'}">${isActive ? '👁' : '🚫'}</button>` : `<span style="color:${isActive ? '#4CAF50' : '#ff4444'};font-size:13px;">${isActive ? '👁' : '🚫'}</span>`;
+      let activeBtn;
+      if (isOwner) {
+        // Owner: toggle product-level active (ซ่อน/โชว์ product ทั้งตัว)
+        activeBtn = `<button class="badge-btn" data-action="toggleActive" data-id="${item.id}" data-active="${isActive}" title="${isActive ? 'ปิดสินค้า' : 'เปิดสินค้า'}" style="color:${isActive ? '#4CAF50' : '#ff4444'}">${isActive ? '👁' : '🚫'}</button>`;
+      } else if (isMyProduct(item)) {
+        // Non-owner: toggle เฉพาะ stock ของตัวเอง (ดึงออก/ใส่กลับ) — ไม่แตะ active
+        const myHeld = Number((item.adminClosedStock || {})[currentAdminName]) || 0;
+        const myActiveStock = Number((item.adminStock || {})[currentAdminName]) || 0;
+        const myStockClosed = myHeld > 0;
+        const myTitle = myStockClosed ? `ใส่ stock กลับ (${myHeld})` : `ปิด stock ของคุณ (${myActiveStock})`;
+        activeBtn = `<button class="badge-btn" data-action="toggleMyStock" data-id="${item.id}" title="${myTitle}" style="color:${myStockClosed ? '#ff4444' : '#4CAF50'}">${myStockClosed ? '🚫' : '👁'}</button>`;
+      } else {
+        activeBtn = `<span style="color:${isActive ? '#4CAF50' : '#ff4444'};font-size:13px;">${isActive ? '👁' : '🚫'}</span>`;
+      }
       return `
         <tr data-id="${item.id}" style="${rowStyle}">
           <td data-label="#" style="text-align:center;"><span style="color:#e0b0ff;font-weight:600;">${index + 1}</span></td>
@@ -1566,6 +1580,47 @@ async function toggleShareExternal(itemId, currentShared) {
     showToast(!currentShared ? 'แชร์สินค้าให้แอดมินภายนอกเห็นแล้ว' : 'ยกเลิกแชร์กับแอดมินภายนอกแล้ว');
   } catch (e) {
     showAlert('เปลี่ยนสถานะไม่ได้: ' + e.message, 'ผิดพลาด');
+  }
+}
+
+// ============ TOGGLE MY STOCK (non-owner: ดึง stock ตัวเองออก/ใส่กลับ) ============
+async function toggleMyStock(itemId) {
+  if (!currentAdminName) { showAlert('ยังไม่ได้ตั้งชื่อ admin', 'ผิดพลาด'); return; }
+  const name = currentAdminName;
+
+  try {
+    await db.runTransaction(async (transaction) => {
+      const itemRef = db.collection('items').doc(itemId);
+      const doc = await transaction.get(itemRef);
+      if (!doc.exists) throw new Error('ไม่พบสินค้า');
+      const data = doc.data();
+      const adminStock = data.adminStock || {};
+      const closedMap = data.adminClosedStock || {};
+      const currentStock = Number(data.stock) || 0;
+      const myActive = Number(adminStock[name]) || 0;
+      const myClosed = Number(closedMap[name]) || 0;
+
+      if (myClosed > 0) {
+        // กำลังปิดอยู่ → เปิดกลับ (ใส่ stock คืน)
+        transaction.update(itemRef, {
+          stock: firebase.firestore.FieldValue.increment(myClosed),
+          [`adminStock.${name}`]: firebase.firestore.FieldValue.increment(myClosed),
+          [`adminClosedStock.${name}`]: firebase.firestore.FieldValue.delete()
+        });
+      } else {
+        // เปิดอยู่ → ปิด (ดึง stock ตัวเองออก)
+        if (myActive <= 0) throw new Error('stock ของคุณเป็น 0 อยู่แล้ว');
+        if (currentStock < myActive) throw new Error('stock รวมน้อยกว่าของคุณ อาจโดนขายไปแล้ว');
+        transaction.update(itemRef, {
+          stock: firebase.firestore.FieldValue.increment(-myActive),
+          [`adminStock.${name}`]: 0,
+          [`adminClosedStock.${name}`]: myActive
+        });
+      }
+    });
+    showToast('อัปเดต stock ของคุณแล้ว');
+  } catch (e) {
+    showAlert('เปลี่ยนไม่ได้: ' + e.message, 'ผิดพลาด');
   }
 }
 
