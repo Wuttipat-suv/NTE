@@ -116,7 +116,8 @@ function processProductSnapshot(snapshot) {
         promoExtra = `<div style="font-size:10px;color:#4CAF50;margin-top:2px;">คุณได้ ${formatPrice(ec)} ฿</div>`;
       }
       const shareBtn = isOwner ? `<button class="badge-btn" data-action="toggleShare" data-id="${item.id}" data-shared="${!!item.sharedWithExternal}" title="${item.sharedWithExternal ? 'ยกเลิกแชร์กับภายนอก' : 'แชร์ให้แอดมินภายนอกเห็น'}" style="color:${item.sharedWithExternal ? '#ff9800' : '#555'}">${item.sharedWithExternal ? '🔗' : '🔒'}</button>` : '';
-      const activeBtn = (isOwner || isExternal) ? `<button class="badge-btn" data-action="toggleActive" data-id="${item.id}" data-active="${isActive}" title="${isActive ? 'ปิดสินค้า' : 'เปิดสินค้า'}" style="color:${isActive ? '#4CAF50' : '#ff4444'}">${isActive ? '👁' : '🚫'}</button>` : `<span style="color:${isActive ? '#4CAF50' : '#ff4444'};font-size:13px;">${isActive ? '👁' : '🚫'}</span>`;
+      const canToggleActive = isOwner || isMyProduct(item);
+      const activeBtn = canToggleActive ? `<button class="badge-btn" data-action="toggleActive" data-id="${item.id}" data-active="${isActive}" title="${isActive ? 'ปิดสินค้า' : 'เปิดสินค้า'}" style="color:${isActive ? '#4CAF50' : '#ff4444'}">${isActive ? '👁' : '🚫'}</button>` : `<span style="color:${isActive ? '#4CAF50' : '#ff4444'};font-size:13px;">${isActive ? '👁' : '🚫'}</span>`;
       return `
         <tr data-id="${item.id}" style="${rowStyle}">
           <td data-label="#" style="text-align:center;"><span style="color:#e0b0ff;font-weight:600;">${index + 1}</span></td>
@@ -1570,28 +1571,33 @@ async function toggleShareExternal(itemId, currentShared) {
 
 // ============ TOGGLE ITEM ACTIVE ============
 async function toggleItemActive(itemId, currentActive) {
-  if (isOwner) {
+  const item = allProducts.find(p => p.id === itemId);
+
+  // Owner กดได้ทุกตัว | Non-owner กดได้เฉพาะสินค้าของตัวเอง (isMyProduct)
+  const canToggleDirect = isOwner || (item && isMyProduct(item));
+
+  if (canToggleDirect) {
     try {
       await db.collection('items').doc(itemId).update({ active: !currentActive });
       showToast(!currentActive ? 'เปิดสินค้าแล้ว' : 'ปิดสินค้าแล้ว (ลูกค้าจะไม่เห็น)');
     } catch (e) {
       showAlert('เปลี่ยนสถานะไม่ได้: ' + e.message, 'ผิดพลาด');
     }
-  } else {
-    // Non-owner → ส่งคำขอ (ใช้ itemId เป็น key กัน duplicate)
-    const item = allProducts.find(p => p.id === itemId);
-    try {
-      const docId = 'toggle_active_' + itemId;
-      const existing = await db.collection('pending_actions').doc(docId).get();
-      if (existing.exists) { showAlert('คำขอนี้รออนุมัติอยู่แล้ว', 'ซ้ำ'); return; }
-      await db.collection('pending_actions').doc(docId).set({
-        type: 'toggle_active', itemId, itemName: item ? item.name : itemId,
-        newValue: !currentActive, requestedBy: currentAdminName,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      showToast('ส่งคำขอ' + (!currentActive ? 'เปิด' : 'ปิด') + 'สินค้าแล้ว รอ owner อนุมัติ');
-    } catch (e) { showAlert('ส่งคำขอไม่ได้: ' + e.message, 'ผิดพลาด'); }
+    return;
   }
+
+  // ไม่ใช่ของตัวเอง → ส่งคำขอให้ owner อนุมัติ (ใช้ itemId เป็น key กัน duplicate)
+  try {
+    const docId = 'toggle_active_' + itemId;
+    const existing = await db.collection('pending_actions').doc(docId).get();
+    if (existing.exists) { showAlert('คำขอนี้รออนุมัติอยู่แล้ว', 'ซ้ำ'); return; }
+    await db.collection('pending_actions').doc(docId).set({
+      type: 'toggle_active', itemId, itemName: item ? item.name : itemId,
+      newValue: !currentActive, requestedBy: currentAdminName,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast('ส่งคำขอ' + (!currentActive ? 'เปิด' : 'ปิด') + 'สินค้าแล้ว รอ owner อนุมัติ');
+  } catch (e) { showAlert('ส่งคำขอไม่ได้: ' + e.message, 'ผิดพลาด'); }
 }
 
 // ============ DELETE PRODUCT ============
