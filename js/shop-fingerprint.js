@@ -4,7 +4,7 @@
 // ============================================================
 
 const FP_COOLDOWN_MS = 30 * 1000;      // 30s ระหว่างออเดอร์ต่อเครื่อง
-const FP_HOURLY_LIMIT = 5;             // สูงสุด 5 ออเดอร์ / ชม / เครื่อง
+const FP_HOURLY_LIMIT = 3;             // สูงสุด 3 ออเดอร์ / ชม / เครื่อง
 const FP_HOURLY_WINDOW_MS = 60 * 60 * 1000;
 
 async function _sha256Hex(str) {
