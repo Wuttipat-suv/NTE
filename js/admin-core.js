@@ -208,6 +208,7 @@ function setupLogin() {
         loadOrders();
         loadProducts();
         loadBanList();
+        if (typeof trackVisitor === 'function') { trackVisitor(); loadTotalCount(); }
         if (typeof loadAdminReservations === 'function') loadAdminReservations();
         listenShopToggle();
         if (typeof setupPayModeToggle === 'function') setupPayModeToggle();

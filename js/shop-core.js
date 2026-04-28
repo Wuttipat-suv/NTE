@@ -452,6 +452,7 @@ document.addEventListener("DOMContentLoaded", () => {
   loadBlocklist();
   loadReservations();
   if (typeof loadDiscordWebhooks === 'function') loadDiscordWebhooks();
+  if (typeof trackVisitor === 'function') trackVisitor();
 
   // จัดการการพับจอ (Page Visibility) เพื่อประหยัดโควต้า
   document.addEventListener("visibilitychange", () => {

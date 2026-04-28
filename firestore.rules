@@ -134,6 +134,14 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ============ VISITORS (daily + total counter) ============
+    match /visitors/{docId} {
+      allow read: if true;
+      allow write: if request.resource.data.keys().hasOnly(['count'])
+                    && request.resource.data.count is number
+                    && request.resource.data.count >= 0;
+    }
+
     // ============ RESERVATIONS (จองสินค้าในตะกร้า) ============
     match /reservations/{sessionId} {
       allow read: if true;
