@@ -1,0 +1,887 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>BubbleShop | NTE Accounts</title>
+
+  <link rel="icon" type="image/png" href="pic/jin-arc-trace.png" />
+
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="css/style-nte.css" />
+</head>
+
+<body>
+  <header class="header">
+    <div class="brand">
+      <div class="brand-mark">NTE</div>
+
+      <div>
+        <h1>BubbleShop</h1>
+        <span>Neverness to Everness Accounts</span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="pill">
+        TOTAL <strong id="totalAccounts">0</strong> ACCOUNTS
+      </div>
+
+      <a
+        href="https://www.facebook.com/p.peerapong.2024"
+        target="_blank"
+        rel="noopener"
+        class="fb-link"
+      >
+        Facebook ร้าน
+      </a>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="top-layout">
+      <section class="hero-card head-card">
+        <div class="hero-kicker">NTE Account Store</div>
+
+        <h2>ขายไอดี NTE<br />พร้อมส่งโดยแอดมิน</h2>
+
+        <p>
+          เลือกไอดีที่สนใจ กดดูรายละเอียดเพื่อตรวจสอบข้อมูลก่อนจอง
+          จากนั้นกด “จองไอดีนี้” แล้วรอแอดมินติดต่อกลับทาง Facebook
+        </p>
+
+        <div class="notice">
+          หมายเหตุ: การซื้อขายไอดีเกมอาจมีความเสี่ยงหรืออาจขัดกับเงื่อนไขของผู้ให้บริการเกม
+          ควรแจ้งเงื่อนไขรับประกัน/หลังการขายให้ลูกค้าชัดเจนก่อนซื้อขายทุกครั้ง
+        </div>
+      </section>
+
+      <aside class="left-column">
+        <section class="side-card status-card">
+          <h3>สถานะร้านค้า</h3>
+
+          <div class="single-stat">
+            <strong id="soldCount">0</strong>
+            <span>ขายแล้ว</span>
+          </div>
+        </section>
+
+        <section class="side-card credit-card">
+          <h3>เครดิตร้าน</h3>
+
+          <a
+            href="https://www.facebook.com/photo?fbid=4362589167304489"
+            target="_blank"
+            rel="noopener"
+            class="credit-img-link"
+          >
+            <img src="pic/credit.jpg" alt="เครดิตร้าน" />
+            <span>คลิกเพื่อดูเครดิตร้าน</span>
+          </a>
+
+          <div class="credit-divider"></div>
+
+          <a
+            href="https://www.facebook.com/p.peerapong.2024"
+            target="_blank"
+            rel="noopener"
+            class="credit-fb-link"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"
+              />
+            </svg>
+            P'Peerapong
+          </a>
+        </section>
+      </aside>
+    </section>
+
+    <section class="shop-content">
+      <section id="accountGrid" class="grid"></section>
+
+      <section id="emptyState" class="empty" style="display: none;">
+        ยังไม่มีไอดี NTE ในระบบ
+      </section>
+    </section>
+  </main>
+
+  <div class="modal-overlay" id="orderModal">
+    <div class="nte-modal">
+      <div class="gallery-wrap">
+        <button class="gallery-nav prev" id="prevImageBtn" type="button" aria-label="รูปก่อนหน้า">
+          &lt;
+        </button>
+
+        <img id="modalImage" class="modal-preview" src="" alt="NTE Account" />
+
+        <button class="gallery-nav next" id="nextImageBtn" type="button" aria-label="รูปถัดไป">
+          &gt;
+        </button>
+
+        <div class="gallery-counter" id="galleryCounter">1 / 1</div>
+      </div>
+
+      <h2 id="modalTitle">รายละเอียดไอดี</h2>
+
+      <div id="modalDetail" class="modal-detail"></div>
+
+      <div class="form-group">
+        <label for="buyerFb">Facebook ผู้ซื้อ</label>
+        <input
+          id="buyerFb"
+          type="text"
+          maxlength="100"
+          placeholder="เช่น P'Peerapong"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="buyerContact">ช่องทางติดต่อเพิ่มเติม</label>
+        <input
+          id="buyerContact"
+          type="text"
+          maxlength="120"
+          placeholder="ลิงก์เฟซ / เบอร์ / Discord / Line"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="buyerNote">หมายเหตุถึงแอดมิน</label>
+        <textarea
+          id="buyerNote"
+          rows="3"
+          maxlength="500"
+          placeholder="เช่น ต้องการรับไอดีช่วงเวลาไหน"
+        ></textarea>
+      </div>
+
+      <label class="checkbox-row">
+        <input id="confirmCheck" type="checkbox" />
+
+        <span>
+          ข้าพเจ้ายืนยันว่าตรวจสอบรายละเอียดไอดีและช่องทางติดต่อถูกต้องแล้ว
+          หากต้องการเปลี่ยนแปลงจะติดต่อแอดมินทาง Facebook
+        </span>
+      </label>
+
+      <div class="modal-buttons">
+        <button class="btn btn-secondary" id="cancelBtn" type="button">
+          ยกเลิก
+        </button>
+
+        <button class="btn" id="submitBtn" type="button">
+          จองไอดีนี้
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <script src="js/firebase-config.js"></script>
+
+  <script>
+    "use strict";
+
+    const USE_MOCK_DATA = true;
+
+    const COLLECTION_ACCOUNTS = "nte_accounts";
+    const COLLECTION_ORDERS = "nte_orders";
+
+    const fallbackImage =
+      "data:image/svg+xml;charset=UTF-8," +
+      encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+          <defs>
+            <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+              <stop stop-color="#ff5fb7"/>
+              <stop offset="0.5" stop-color="#8b5cff"/>
+              <stop offset="1" stop-color="#54e7ff"/>
+            </linearGradient>
+          </defs>
+
+          <rect width="960" height="540" fill="#10101c"/>
+          <circle cx="160" cy="80" r="180" fill="#ff5fb7" opacity="0.25"/>
+          <circle cx="820" cy="120" r="220" fill="#54e7ff" opacity="0.22"/>
+
+          <text
+            x="50%"
+            y="46%"
+            dominant-baseline="middle"
+            text-anchor="middle"
+            font-family="Arial"
+            font-size="72"
+            font-weight="900"
+            fill="url(#g)"
+          >
+            NTE
+          </text>
+
+          <text
+            x="50%"
+            y="58%"
+            dominant-baseline="middle"
+            text-anchor="middle"
+            font-family="Arial"
+            font-size="28"
+            fill="#ffffff"
+            opacity="0.75"
+          >
+            Neverness to Everness Account
+          </text>
+        </svg>
+      `);
+
+    const mockAccounts = [
+      {
+        id: "mock-nte-001",
+        title: "NTE Starter Account #001",
+        price: 590,
+        images: [
+          "pic/nte-account-01.jpg",
+          "pic/nte-account-01-2.jpg",
+          "pic/nte-account-01-3.jpg"
+        ],
+        server: "Asia",
+        loginType: "Email",
+        level: "12",
+        guarantee: "ประกัน 7 วัน",
+        status: "available",
+        note: "ไอดีเริ่มต้น เหมาะสำหรับคนอยากเริ่มเล่น มีของพื้นฐานครบ พร้อมรับไปเล่นต่อได้เลย",
+        tags: ["Starter", "ราคาดี", "พร้อมเล่น"],
+        visible: true,
+        sort: 1,
+        createdMs: Date.now()
+      },
+      {
+        id: "mock-nte-002",
+        title: "NTE Mid Account #002",
+        price: 1290,
+        images: [
+          "pic/nte-account-02.jpg",
+          "pic/nte-account-02-2.jpg",
+          "pic/nte-account-02-3.jpg"
+        ],
+        server: "Asia",
+        loginType: "Email",
+        level: "28",
+        guarantee: "ประกัน 7 วัน",
+        status: "available",
+        note: "ไอดีกลาง มีทรัพยากรสะสมพอสมควร เหมาะสำหรับเล่นต่อแบบไม่ต้องเริ่มใหม่",
+        tags: ["Mid", "ของเยอะ", "คุ้ม"],
+        visible: true,
+        sort: 2,
+        createdMs: Date.now() - 1000
+      },
+      {
+        id: "mock-nte-003",
+        title: "NTE Premium Account #003",
+        price: 2990,
+        images: [
+          "pic/nte-account-03.jpg",
+          "pic/nte-account-03-2.jpg"
+        ],
+        server: "Asia",
+        loginType: "Email",
+        level: "45",
+        guarantee: "ประกัน 14 วัน",
+        status: "available",
+        note: "ไอดีพรีเมียม มีตัวและของสะสมเยอะ เหมาะกับคนอยากเริ่มแบบแน่น ๆ",
+        tags: ["Premium", "ตัวเยอะ", "ประกันยาว"],
+        visible: true,
+        sort: 3,
+        createdMs: Date.now() - 2000
+      },
+      {
+        id: "mock-nte-004",
+        title: "NTE Sold Account #004",
+        price: 890,
+        images: [
+          "pic/nte-account-04.jpg"
+        ],
+        server: "Asia",
+        loginType: "Email",
+        level: "20",
+        guarantee: "ขายแล้ว",
+        status: "sold",
+        note: "ตัวอย่างรายการที่ขายแล้ว ใช้สำหรับแสดงสถานะสินค้า",
+        tags: ["Sold"],
+        visible: true,
+        sort: 4,
+        createdMs: Date.now() - 3000
+      }
+    ];
+
+    const state = {
+      accounts: [],
+      selected: null,
+      unsubscribe: null,
+      currentImageIndex: 0
+    };
+
+    const el = {
+      grid: document.getElementById("accountGrid"),
+      empty: document.getElementById("emptyState"),
+      total: document.getElementById("totalAccounts"),
+      sold: document.getElementById("soldCount"),
+
+      modal: document.getElementById("orderModal"),
+      modalImage: document.getElementById("modalImage"),
+      modalTitle: document.getElementById("modalTitle"),
+      modalDetail: document.getElementById("modalDetail"),
+      galleryCounter: document.getElementById("galleryCounter"),
+      prevImageBtn: document.getElementById("prevImageBtn"),
+      nextImageBtn: document.getElementById("nextImageBtn"),
+
+      buyerFb: document.getElementById("buyerFb"),
+      buyerContact: document.getElementById("buyerContact"),
+      buyerNote: document.getElementById("buyerNote"),
+      confirmCheck: document.getElementById("confirmCheck"),
+
+      cancelBtn: document.getElementById("cancelBtn"),
+      submitBtn: document.getElementById("submitBtn"),
+      toast: document.getElementById("toast")
+    };
+
+    const db = getFirestoreInstance();
+
+    boot();
+
+    function getFirestoreInstance() {
+      if (USE_MOCK_DATA) {
+        return null;
+      }
+
+      if (!window.firebase || !firebase.apps || firebase.apps.length === 0) {
+        showToast("ไม่พบ Firebase app กรุณาตรวจสอบไฟล์ js/firebase-config.js");
+        throw new Error("Firebase app is not initialized.");
+      }
+
+      return firebase.firestore();
+    }
+
+    function boot() {
+      bindEvents();
+
+      if (USE_MOCK_DATA) {
+        state.accounts = mockAccounts
+          .map((account) => normalizeAccount(account.id, account))
+          .filter((account) => account.visible !== false)
+          .sort(sortAccounts);
+
+        render();
+        showToast("กำลังแสดงข้อมูล mock สำหรับทดสอบหน้าเว็บ");
+        return;
+      }
+
+      listenAccounts();
+    }
+
+    function bindEvents() {
+      el.cancelBtn.addEventListener("click", closeModal);
+
+      el.modal.addEventListener("click", (event) => {
+        if (event.target === el.modal) {
+          closeModal();
+        }
+      });
+
+      el.prevImageBtn.addEventListener("click", showPrevImage);
+      el.nextImageBtn.addEventListener("click", showNextImage);
+
+      el.submitBtn.addEventListener("click", submitOrder);
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeModal();
+          return;
+        }
+
+        if (!el.modal.classList.contains("show")) {
+          return;
+        }
+
+        if (event.key === "ArrowLeft") {
+          showPrevImage();
+        }
+
+        if (event.key === "ArrowRight") {
+          showNextImage();
+        }
+      });
+    }
+
+    function listenAccounts() {
+      state.unsubscribe = db.collection(COLLECTION_ACCOUNTS).onSnapshot(
+        (snapshot) => {
+          state.accounts = snapshot.docs
+            .map((doc) => normalizeAccount(doc.id, doc.data()))
+            .filter((account) => account.visible !== false)
+            .sort(sortAccounts);
+
+          render();
+        },
+        (error) => {
+          console.error(error);
+          showToast("โหลดข้อมูลไอดีไม่สำเร็จ กรุณาตรวจสอบ Firestore Rules หรือ collection nte_accounts");
+        }
+      );
+    }
+
+    function normalizeAccount(id, data) {
+      const tags = Array.isArray(data.tags)
+        ? data.tags.map(String)
+        : String(data.tags || "")
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter(Boolean);
+
+      let images = [];
+
+      if (Array.isArray(data.images) && data.images.length) {
+        images = data.images.map(String).filter(Boolean);
+      } else if (data.image) {
+        images = [String(data.image)];
+      } else if (data.imageUrl) {
+        images = [String(data.imageUrl)];
+      }
+
+      if (!images.length) {
+        images = [fallbackImage];
+      }
+
+      return {
+        id,
+        title: String(data.title || "NTE Account"),
+        price: Number(data.price || 0),
+        images,
+        image: images[0],
+        server: String(data.server || "-"),
+        loginType: String(data.loginType || data.platform || "-"),
+        level: String(data.level || "-"),
+        guarantee: String(data.guarantee || "สอบถามแอดมิน"),
+        status: String(data.status || "available").toLowerCase(),
+        note: String(data.note || data.description || ""),
+        tags,
+        visible: data.visible !== false,
+        sort: Number(data.sort),
+        createdMs:
+          data.createdAt && typeof data.createdAt.toMillis === "function"
+            ? data.createdAt.toMillis()
+            : Number(data.createdMs || 0)
+      };
+    }
+
+    function sortAccounts(accountA, accountB) {
+      const sortA = Number.isFinite(accountA.sort) ? accountA.sort : 999999;
+      const sortB = Number.isFinite(accountB.sort) ? accountB.sort : 999999;
+
+      if (sortA !== sortB) {
+        return sortA - sortB;
+      }
+
+      return accountB.createdMs - accountA.createdMs;
+    }
+
+    function getPrimaryImage(account) {
+      if (Array.isArray(account.images) && account.images.length) {
+        return account.images[0];
+      }
+
+      return account.image || fallbackImage;
+    }
+
+    function render() {
+      updateStats();
+
+      const list = state.accounts;
+
+      el.grid.innerHTML = list.map(renderCard).join("");
+      el.empty.style.display = list.length ? "none" : "block";
+
+      el.grid.querySelectorAll("[data-detail-id]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const account = state.accounts.find((item) => item.id === button.dataset.detailId);
+
+          if (account) {
+            openModal(account);
+          }
+        });
+      });
+    }
+
+    function renderCard(account) {
+      const statusText = getStatusText(account.status);
+      const disabled = account.status !== "available";
+      const primaryImage = getPrimaryImage(account);
+
+      return `
+        <article class="account-card" data-card-id="${escapeAttribute(account.id)}">
+          <span class="status ${escapeHtml(account.status)}">
+            ${escapeHtml(statusText)}
+          </span>
+
+          <img
+            class="account-image"
+            src="${escapeAttribute(primaryImage)}"
+            alt="${escapeAttribute(account.title)}"
+            loading="lazy"
+            onerror="this.src='${fallbackImage}'"
+          />
+
+          <div class="account-body">
+            <div class="account-top">
+              <h3 class="account-title">${escapeHtml(account.title)}</h3>
+              <div class="price">${formatPrice(account.price)}</div>
+            </div>
+
+            <div class="meta">
+              <div class="meta-item">
+                <span>เซิร์ฟ / โซน</span>
+                <strong>${escapeHtml(account.server)}</strong>
+              </div>
+
+              <div class="meta-item">
+                <span>Login</span>
+                <strong>${escapeHtml(account.loginType)}</strong>
+              </div>
+
+              <div class="meta-item">
+                <span>เลเวล</span>
+                <strong>${escapeHtml(account.level)}</strong>
+              </div>
+
+              <div class="meta-item">
+                <span>ประกัน</span>
+                <strong>${escapeHtml(account.guarantee)}</strong>
+              </div>
+            </div>
+
+            ${
+              account.tags.length
+                ? `
+                  <div class="tags">
+                    ${account.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}
+                  </div>
+                `
+                : ""
+            }
+
+            ${
+              account.note
+                ? `
+                  <p class="account-note">
+                    ${escapeHtml(account.note)}
+                  </p>
+                `
+                : ""
+            }
+
+            <button
+              class="btn"
+              data-detail-id="${escapeAttribute(account.id)}"
+              ${disabled ? "disabled" : ""}
+            >
+              ${disabled ? "ไม่พร้อมขาย" : "ดูรายละเอียด"}
+            </button>
+          </div>
+        </article>
+      `;
+    }
+
+    function updateStats() {
+      const total = state.accounts.length;
+      const sold = state.accounts.filter((item) => item.status === "sold").length;
+
+      el.total.textContent = total;
+      el.sold.textContent = sold;
+    }
+
+    function updateModalGallery() {
+      if (!state.selected) {
+        return;
+      }
+
+      const images = Array.isArray(state.selected.images) && state.selected.images.length
+        ? state.selected.images
+        : [fallbackImage];
+
+      if (state.currentImageIndex < 0) {
+        state.currentImageIndex = images.length - 1;
+      }
+
+      if (state.currentImageIndex >= images.length) {
+        state.currentImageIndex = 0;
+      }
+
+      const currentImage = images[state.currentImageIndex] || fallbackImage;
+
+      el.modalImage.src = currentImage;
+      el.galleryCounter.textContent = `${state.currentImageIndex + 1} / ${images.length}`;
+
+      const hideNav = images.length <= 1;
+
+      el.prevImageBtn.style.display = hideNav ? "none" : "flex";
+      el.nextImageBtn.style.display = hideNav ? "none" : "flex";
+      el.galleryCounter.style.display = hideNav ? "none" : "block";
+    }
+
+    function showPrevImage() {
+      if (!state.selected) {
+        return;
+      }
+
+      state.currentImageIndex -= 1;
+      updateModalGallery();
+    }
+
+    function showNextImage() {
+      if (!state.selected) {
+        return;
+      }
+
+      state.currentImageIndex += 1;
+      updateModalGallery();
+    }
+
+    function openModal(account) {
+      if (account.status !== "available") {
+        showToast("ไอดีนี้ไม่พร้อมขายแล้ว");
+        return;
+      }
+
+      state.selected = account;
+      state.currentImageIndex = 0;
+
+      el.modalTitle.textContent = account.title;
+
+      el.modalDetail.innerHTML = `
+        <div class="detail-price">${formatPrice(account.price)}</div>
+
+        <div class="detail-grid">
+          <div>
+            <span>เซิร์ฟ / โซน</span>
+            <strong>${escapeHtml(account.server)}</strong>
+          </div>
+
+          <div>
+            <span>Login</span>
+            <strong>${escapeHtml(account.loginType)}</strong>
+          </div>
+
+          <div>
+            <span>เลเวล</span>
+            <strong>${escapeHtml(account.level)}</strong>
+          </div>
+
+          <div>
+            <span>ประกัน</span>
+            <strong>${escapeHtml(account.guarantee)}</strong>
+          </div>
+        </div>
+
+        ${
+          account.tags.length
+            ? `
+              <div class="detail-tags">
+                ${account.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}
+              </div>
+            `
+            : ""
+        }
+
+        ${
+          account.note
+            ? `<p class="detail-note">${escapeHtml(account.note)}</p>`
+            : ""
+        }
+      `;
+
+      el.buyerFb.value = "";
+      el.buyerContact.value = "";
+      el.buyerNote.value = "";
+      el.confirmCheck.checked = false;
+
+      el.submitBtn.disabled = false;
+      el.submitBtn.textContent = "จองไอดีนี้";
+
+      updateModalGallery();
+
+      el.modal.classList.add("show");
+
+      setTimeout(() => {
+        el.buyerFb.focus();
+      }, 50);
+    }
+
+    function closeModal() {
+      el.modal.classList.remove("show");
+
+      state.selected = null;
+      state.currentImageIndex = 0;
+
+      el.submitBtn.disabled = false;
+      el.submitBtn.textContent = "จองไอดีนี้";
+    }
+
+    async function submitOrder() {
+      const account = state.selected;
+
+      if (!account) {
+        showToast("ไม่พบรายการที่เลือก");
+        return;
+      }
+
+      const fb = el.buyerFb.value.trim();
+      const contact = el.buyerContact.value.trim();
+      const note = el.buyerNote.value.trim();
+
+      if (!fb) {
+        showToast("กรุณากรอก Facebook ผู้ซื้อ");
+        el.buyerFb.focus();
+        return;
+      }
+
+      if (!contact) {
+        showToast("กรุณากรอกช่องทางติดต่อเพิ่มเติม");
+        el.buyerContact.focus();
+        return;
+      }
+
+      if (!el.confirmCheck.checked) {
+        showToast("กรุณาติ๊กยืนยันข้อมูลก่อนจอง");
+        return;
+      }
+
+      el.submitBtn.disabled = true;
+      el.submitBtn.textContent = "กำลังจอง...";
+
+      if (USE_MOCK_DATA) {
+        const selectedIndex = state.accounts.findIndex((item) => item.id === account.id);
+
+        if (selectedIndex !== -1) {
+          state.accounts[selectedIndex] = {
+            ...state.accounts[selectedIndex],
+            status: "reserved"
+          };
+        }
+
+        closeModal();
+        render();
+        showToast("Mock: จองสำเร็จแล้ว ✔️");
+        return;
+      }
+
+      const accountRef = db.collection(COLLECTION_ACCOUNTS).doc(account.id);
+      const orderRef = db.collection(COLLECTION_ORDERS).doc();
+      const serverTimestamp = firebase.firestore.FieldValue.serverTimestamp();
+
+      try {
+        await db.runTransaction(async (transaction) => {
+          const accountSnap = await transaction.get(accountRef);
+
+          if (!accountSnap.exists) {
+            throw new Error("ไม่พบไอดีนี้ในระบบ");
+          }
+
+          const fresh = accountSnap.data();
+          const freshStatus = String(fresh.status || "available").toLowerCase();
+
+          if (freshStatus !== "available") {
+            throw new Error("ไอดีนี้ถูกจองหรือขายไปแล้ว");
+          }
+
+          transaction.update(accountRef, {
+            status: "reserved",
+            reservedAt: serverTimestamp,
+            reservedBy: fb
+          });
+
+          transaction.set(orderRef, {
+            type: "nte_account",
+            accountId: account.id,
+            accountTitle: fresh.title || account.title,
+            price: Number(fresh.price || account.price || 0),
+            fb,
+            contact,
+            note,
+            status: "pending",
+            createdAt: serverTimestamp,
+            userAgent: navigator.userAgent.slice(0, 300)
+          });
+        });
+
+        closeModal();
+        render();
+
+        showToast("จองสำเร็จ! รอแอดมินติดต่อกลับทาง Facebook ได้เลยครับ ✔️");
+      } catch (error) {
+        console.error(error);
+
+        showToast(error.message || "จองไม่สำเร็จ กรุณาลองใหม่");
+
+        el.submitBtn.disabled = false;
+        el.submitBtn.textContent = "จองไอดีนี้";
+      }
+    }
+
+    function getStatusText(status) {
+      if (status === "sold") {
+        return "ขายแล้ว";
+      }
+
+      if (status === "reserved") {
+        return "จองแล้ว";
+      }
+
+      return "พร้อมขาย";
+    }
+
+    function formatPrice(value) {
+      const number = Number(value || 0);
+      return `${number.toLocaleString("th-TH")} บาท`;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function escapeAttribute(value) {
+      return escapeHtml(value).replaceAll("`", "&#096;");
+    }
+
+    let toastTimer = null;
+
+    function showToast(message) {
+      if (!el.toast) {
+        alert(message);
+        return;
+      }
+
+      clearTimeout(toastTimer);
+
+      el.toast.textContent = message;
+      el.toast.classList.add("show");
+
+      toastTimer = setTimeout(() => {
+        el.toast.classList.remove("show");
+      }, 3600);
+    }
+  </script>
+</body>
+</html>

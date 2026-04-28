@@ -1,12 +1,27 @@
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyC-R8wnPsPIHfYoVw_HjimthCqTa_PZCjw",
+  authDomain: "telesrunner-afab6.firebaseapp.com",
+  projectId: "telesrunner-afab6",
+  storageBucket: "telesrunner-afab6.firebasestorage.app",
+  messagingSenderId: "454814765823",
+  appId: "1:454814765823:web:ae0572cbdaa3711f2132ca",
+  measurementId: "G-1DP2XH12LE"
 };
 
 // Init Firebase
 firebase.initializeApp(firebaseConfig);
+
+// App Check: reCAPTCHA v3 — กัน spam ระดับ request ก่อนเข้า Firestore
+// Site key เปิดเผยใน HTML ได้ ส่วน secret key เก็บที่ Firebase Console เท่านั้น
+if (typeof firebase.appCheck === 'function') {
+  try {
+    firebase.appCheck().activate(
+      new firebase.appCheck.ReCaptchaV3Provider('6LdiSb8sAAAAANTA2twXah7Zs7cusZfOyeCzVyjv'),
+      true // auto-refresh token
+    );
+  } catch (e) {
+    console.warn('App Check init failed:', e.message);
+  }
+}
+
 const db = firebase.firestore();
