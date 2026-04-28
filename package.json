@@ -1,0 +1,24 @@
+{
+  "name": "talesrunnershop",
+  "version": "1.0.0",
+  "description": "E-commerce web app for selling TalesRunner game items. Built from scratch in **~20 hours** with vanilla HTML/CSS/JS + Firebase (no framework).",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PeerapongMala/talesrunner.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/PeerapongMala/talesrunner/issues"
+  },
+  "homepage": "https://github.com/PeerapongMala/talesrunner#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
+  }
+}

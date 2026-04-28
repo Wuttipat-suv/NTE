@@ -6,9 +6,11 @@ Built from scratch in **~20 hours** with vanilla HTML/CSS/JS + Firebase (no fram
 ## Preview
 
 ### Customer Shop
+
 ![Shop Page](screenshots/shop.png)
 
 ### Admin Backoffice
+
 ![Admin Page](screenshots/admin.png)
 
 ## Live Demo
