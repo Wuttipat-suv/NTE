@@ -474,7 +474,22 @@ async function cancelOrder(orderId) {
       // (Firestore transaction เขียน doc เดียวกันหลายครั้ง → เฉพาะครั้งสุดท้ายมีผล)
       const restoreMap = {}; // { itemId: { stock, adminStock: { name: qty }, historyEntries: [] } }
 
-      // ส่วนที่ยังไม่ส่ง (checkout หักไปแล้วตอนสั่ง)
+      // อ่าน item docs เพื่อดู adminStock ว่าของใคร
+      const undeliveredItemIds = [];
+      for (const item of items) {
+        if (!item.itemId) continue;
+        const delivered = deliveredPerItem[item.itemId] || 0;
+        if (item.qty - delivered > 0 && !undeliveredItemIds.includes(item.itemId)) {
+          undeliveredItemIds.push(item.itemId);
+        }
+      }
+      const itemDocMap = {};
+      for (const iid of undeliveredItemIds) {
+        const iDoc = await transaction.get(db.collection('items').doc(iid));
+        if (iDoc.exists) itemDocMap[iid] = iDoc.data();
+      }
+
+      // ส่วนที่ยังไม่ส่ง — คืนตามสัดส่วน adminStock ของแต่ละ admin
       for (const item of items) {
         if (!item.itemId) continue;
         const delivered = deliveredPerItem[item.itemId] || 0;
@@ -482,9 +497,36 @@ async function cancelOrder(orderId) {
         if (undelivered > 0) {
           if (!restoreMap[item.itemId]) restoreMap[item.itemId] = { stock: 0, adminStock: {}, history: [] };
           restoreMap[item.itemId].stock += undelivered;
-          restoreMap[item.itemId].history.push({
-            qty: undelivered, addedBy: 'system', note: 'คืน stock ยังไม่ส่ง (ยกเลิก order)'
-          });
+
+          const iData = itemDocMap[item.itemId];
+          const adminStockMap = iData && iData.adminStock ? iData.adminStock : {};
+          const owners = Object.entries(adminStockMap).filter(([, v]) => Number(v) > 0);
+
+          if (owners.length === 1) {
+            const ownerName = owners[0][0];
+            restoreMap[item.itemId].history.push({
+              qty: undelivered, addedBy: ownerName, note: 'คืน stock ยังไม่ส่ง (ยกเลิก order)'
+            });
+          } else if (owners.length > 1) {
+            const totalOwned = owners.reduce((s, [, v]) => s + Number(v), 0);
+            let remaining = undelivered;
+            for (let oi = 0; oi < owners.length; oi++) {
+              const [name, val] = owners[oi];
+              const share = oi === owners.length - 1
+                ? remaining
+                : Math.round(undelivered * Number(val) / totalOwned);
+              if (share > 0) {
+                restoreMap[item.itemId].history.push({
+                  qty: share, addedBy: name, note: 'คืน stock ยังไม่ส่ง (ยกเลิก order)'
+                });
+                remaining -= share;
+              }
+            }
+          } else {
+            restoreMap[item.itemId].history.push({
+              qty: undelivered, addedBy: 'system', note: 'คืน stock ยังไม่ส่ง (ยกเลิก order)'
+            });
+          }
         }
       }
 
