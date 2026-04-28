@@ -24,8 +24,6 @@ playwright-report/
 test-results/
 tests/
 playwright.config.js
-package.json
-package-lock.json
 
 # Images
 *.png
